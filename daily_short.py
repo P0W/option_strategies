@@ -12,7 +12,10 @@ import logging
 import json
 import argparse
 import threading
+from typing import Any
 
+
+## Setup logging
 logging.basicConfig(
     filename="daily_logs.txt",
     filemode="a",
@@ -21,12 +24,14 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
+## Some handy day separater tag as title
 logging.info(
     "STARTING ALGO TRADING WEEKLY OTPTIONS DATED: |%s|" % datetime.datetime.now()
 )
 
 logger = logging.getLogger(__name__)
 
+## Globals - Refactor someday
 QTY = 100
 SL_FACTOR = 1.55  # 55 %
 CLOSEST_PREMINUM = 7.0
@@ -46,7 +51,7 @@ def login(cred_file: str):
     client.login()
 
 
-def get_current_expiry(index: str):
+def get_current_expiry(index: str) -> int:
     logger.info("Pulling the current expiry timestamp")
     all_nifty_expiry = client.get_expiry(exch="N", symbol=index)["Expiry"]
     date_pattern = re.compile("/Date\((\d+).+?\)/")
@@ -63,7 +68,7 @@ def get_current_expiry(index: str):
     return this_expiry
 
 
-def straddle_strikes(index: str):
+def straddle_strikes(index: str) -> dict[str, Any]:
     this_expiry = get_current_expiry(index)
     contracts = client.get_option_chain(exch="N", symbol=index, expire=this_expiry)[
         "Options"
@@ -102,7 +107,7 @@ def straddle_strikes(index: str):
     }
 
 
-def strangle_strikes(closest_price_thresh: float, index: str):
+def strangle_strikes(closest_price_thresh: float, index: str) -> dict[str, Any]:
     this_expiry = get_current_expiry(index)
     logger.info(
         "Finding closest strikes to premium %f from expiry timestamp %d"
@@ -150,7 +155,7 @@ def strangle_strikes(closest_price_thresh: float, index: str):
     }
 
 
-def place_short(strikes: dict, tag: str):
+def place_short(strikes: dict, tag: str) -> None:
     for item in ["ce", "pe"]:
         price = 0.0  # strikes["%s_ltp" % item] # Market Order if price =0.0
         textinfo = """client.place_order(OrderType='S', 
@@ -179,7 +184,7 @@ def place_short(strikes: dict, tag: str):
             logger.info("%s_done" % item)
 
 
-def place_short_stop_loss(tag: str):
+def place_short_stop_loss(tag: str) -> None:
     logger.info("Fetching order status for %s" % tag)
     id = []
     while len(id) != 2:
@@ -231,7 +236,7 @@ def place_short_stop_loss(tag: str):
     logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
 
 
-def debug_status(tag: str):
+def debug_status(tag: str) -> None:
     r = client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
         "OrdStatusResLst"
     ]
@@ -240,7 +245,7 @@ def debug_status(tag: str):
     print(json.dumps(trdbook, indent=2))
 
 
-def pnl():
+def pnl() -> float:
     positions = client.positions()
     # print(json.dumps(positions, indent=2))
     mtom = 0.0
@@ -249,9 +254,9 @@ def pnl():
     return mtom
 
 
-def squareoff(tag: str):
+def squareoff(tag: str) -> None:
     id = []
-    r = client.fetch_order_status([{"Exch": "N", "RemoteOrderID": self.tag}])[
+    r = client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
         "OrdStatusResLst"
     ]
     for order in r:
@@ -281,7 +286,9 @@ def squareoff(tag: str):
                 continue
 
 
-def day_over():  ## Look for 15:20 on non expiry, leave
+def day_over() -> bool:
+    ## Look for 15:20 on non expiry,
+    ## leave to epire worthless on expiry day
     current_time = datetime.datetime.now()
 
     if (
@@ -293,11 +300,13 @@ def day_over():  ## Look for 15:20 on non expiry, leave
     return False
 
 
-def monitor(target: float, tag: str, log_only: bool = True):
+def monitor(target: float, tag: str, log_only: bool = True) -> None:
     def poll():
         while not day_over():
             mtom = pnl()
             if not log_only and mtom >= target:
+                ## TARGET ACCHEIVED
+                ## Sqaure off both legs
                 squareoff(tag=tag)
             logger.info("MTM = %.2f" % mtom)
             time.sleep(5)
@@ -309,7 +318,7 @@ def monitor(target: float, tag: str, log_only: bool = True):
     return
 
 
-def main(args):
+def main(args) -> None:
     global CLOSEST_PREMINUM, SL_FACTOR, QTY, INDEX_OPTION, EXPIRY_DAY
     now = int(datetime.datetime.now().timestamp())
     tag = "p0wss%d" % now
@@ -362,7 +371,7 @@ def main(args):
         if args.tag != "":
             monitor_tag = args.tag
         if not monitor_tag:
-            monitor(args.monitor_target, monitor_tag)
+            monitor(target=args.mmonitor_target, tag=monitor_tag, log_only=False)
         else:
             logger.info("No recent order, please provide a tag")
 
