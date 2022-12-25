@@ -1,4 +1,11 @@
-# option_strategies
+*Daily strangle, expiry straddle on weekly contracts (NIFTY and BANKNIFTY)*
+---
+
+Prerequisites:
+* 5paisa Brokerage Account
+* Python 3.9+
+* 5paisa python SDK
+---
 
 ```
 usage: daily_short.py [-h] [--creds CREDS] [-s]
