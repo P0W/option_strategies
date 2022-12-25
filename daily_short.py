@@ -1,8 +1,9 @@
 ## Author : Prashant Srivastava
-## Dated  : Dec 6th, 2022
+## Last Modified Date  : Dec 25th, 2022
 
 from py5paisa import FivePaisaClient
 from py5paisa.const import TODAY_TIMESTAMP
+from py5paisa import strategy
 import re
 import math
 import datetime
@@ -10,9 +11,10 @@ import time
 import logging
 import json
 import argparse
+import threading
 
 logging.basicConfig(
-    filename="daily_short_strangle.txt",
+    filename="daily_logs.txt",
     filemode="a",
     format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
     datefmt="%A,%d/%m/%Y|%H:%M:%S",
@@ -29,6 +31,7 @@ QTY = 100
 SL_FACTOR = 1.55  # 55 %
 CLOSEST_PREMINUM = 7.0
 INDEX_OPTION = "NIFTY"
+EXPIRY_DAY = 0
 client = None
 
 
@@ -147,7 +150,7 @@ def strangle_strikes(closest_price_thresh: float, index: str):
     }
 
 
-def place_short(strikes, tag):
+def place_short(strikes: dict, tag: str):
     for item in ["ce", "pe"]:
         price = 0.0  # strikes["%s_ltp" % item] # Market Order if price =0.0
         textinfo = """client.place_order(OrderType='S', 
@@ -228,7 +231,7 @@ def place_short_stop_loss(tag: str):
     logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
 
 
-def status(tag: str):
+def debug_status(tag: str):
     r = client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
         "OrdStatusResLst"
     ]
@@ -237,27 +240,93 @@ def status(tag: str):
     print(json.dumps(trdbook, indent=2))
 
 
+def pnl():
+    positions = client.positions()
+    # print(json.dumps(positions, indent=2))
+    mtom = 0.0
+    for item in positions:
+        mtom += item["MTOM"]
+    return mtom
+
+
+def squareoff(tag: str):
+    id = []
+    r = client.fetch_order_status([{"Exch": "N", "RemoteOrderID": self.tag}])[
+        "OrdStatusResLst"
+    ]
+    for order in r:
+        eoid = order["ExchOrderID"]
+        if eoid != "":
+            id.append(eoid)
+    trdbook = client.get_tradebook()["TradeBookDetail"]
+    for eoid in id:
+        for trade in trdbook:
+            if eoid == int(trade["ExchOrderID"]):
+                buysell_type = "B"
+                intra = trade["DelvIntra"]
+                scrip = trade["ScripCode"]
+                qty = trade["Qty"]
+                segment = trade["ExchType"]
+                order_status = client.place_order(
+                    OrderType=buysell_type,
+                    Exchange="N",
+                    ExchangeType=segment,
+                    ScripCode=scrip,
+                    Qty=qty,
+                    Price=0,
+                    IsIntraday=True,
+                    remote_order_id=tag,
+                )
+            else:
+                continue
+
+
+def day_over():  ## Look for 15:20 on non expiry, leave
+    current_time = datetime.datetime.now()
+
+    if (
+        current_time.weekday != EXPIRY_DAY
+        and current_time.hour >= 15
+        and current_time.minute >= 20
+    ):
+        return True
+    return False
+
+
+def monitor(target: float, tag: str, log_only: bool = True):
+    def poll():
+        while not day_over():
+            mtom = pnl()
+            if not log_only and mtom >= target:
+                squareoff(tag=tag)
+            logger.info("MTM = %.2f" % mtom)
+            time.sleep(5)
+        logger.info("Not Monitoring Day Over!")
+
+    th = threading.Thread(target=poll, args=())
+    th.start()
+    th.join()
+    return
+
+
 def main(args):
-    global CLOSEST_PREMINUM, SL_FACTOR, QTY, INDEX_OPTION
+    global CLOSEST_PREMINUM, SL_FACTOR, QTY, INDEX_OPTION, EXPIRY_DAY
     now = int(datetime.datetime.now().timestamp())
     tag = "p0wss%d" % now
     CLOSEST_PREMINUM = args.closest_premium
     SL_FACTOR = args.stop_loss_factor
     QTY = args.quantity
     INDEX_OPTION = args.index
+    monitor_tag = None
 
     login(cred_file=args.creds)
 
-    if args.status != "":
-        status(tag=args.status)
+    if args.tag != "":
+        debug_status(tag=args.tag)
         return
     elif args.pnl:
-        posiions = client.positions()
-        print(json.dumps(posiions, indent=2))
-        mtom = 0.0
-        for item in posiions:
-            mtom += item["MTOM"]
-        print("MTM =%.2f" % mtom)
+        mtom = pnl()
+        logger.info("MTM = %.2f" % mtom)
         return
 
     logger.info("USING INDEX :%s" % INDEX_OPTION)
@@ -270,16 +339,32 @@ def main(args):
     )
     straddles = straddle_strikes(index=INDEX_OPTION)
 
+    symbol_pattern = "%s\s(\d+)\s" % INDEX_OPTION
+    logger.info("Symbol Pattern %s" % symbol_pattern)
+    st = re.search(symbol_pattern, straddles["ce_name"])
+    if st:
+        EXPIRY_DAY = int(st.group(1))
+    logger.info("Expiry day:%d" % EXPIRY_DAY)
+
     logger.info("Obtained Strangle Strikes:%s" % json.dumps(strangles, indent=2))
     logger.info("Obtained Straddle Strikes:%s" % json.dumps(straddles, indent=2))
 
-    if not args.show_strikes_only and args.status == "":
+    if not args.show_strikes_only and args.tag == "":
         if args.strangle:
             place_short(strangles, tag)
             place_short_stop_loss(tag)
+            monitor_tag = tag
         if args.straddle:
             place_short(straddles, tag)
             place_short_stop_loss(tag)
+            monitor_tag = tag
+    if args.monitor_target > 0.0:
+        if args.tag != "":
+            monitor_tag = args.tag
+        if not monitor_tag:
+            monitor(args.monitor_target, monitor_tag)
+        else:
+            logger.info("No recent order, please provide a tag")
 
 
 if __name__ == "__main__":
@@ -297,9 +382,13 @@ if __name__ == "__main__":
         action="store_true",
         help="Show strikes only, do not place order",
     )
-    parser.add_argument("--pnl", action="store_true", help="Show current PNL")
-    parser.add_argument("--strangle", action="store_true", help="Place Strangle")
-    parser.add_argument("--straddle", action="store_true", help="Place Straddle")
+    parser.add_argument(
+        "--monitor-target",
+        required=False,
+        type=float,
+        default=-1.0,
+        help="Keep polling for given target amount",
+    )
     parser.add_argument(
         "-cp",
         "--closest_premium",
@@ -332,11 +421,15 @@ if __name__ == "__main__":
         help="Index to trade (NIFTY/BANKNIFTY)",
     )
     parser.add_argument(
-        "--status",
+        "--tag",
         type=str,
         default="",
         required=False,
-        help="Tag to print status of last order",
+        help="Tag to print status of last order for given tag, if combined with --monitor_target it polls the position for given tag",
     )
+    parser.add_argument("--pnl", action="store_true", help="Show current PNL")
+    parser.add_argument("--strangle", action="store_true", help="Place Strangle")
+    parser.add_argument("--straddle", action="store_true", help="Place Straddle")
     args = parser.parse_args()
+    logger.info("Command Line Arguments : %s" % json.dumps(vars(args), indent=2))
     main(args)
