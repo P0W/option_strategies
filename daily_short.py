@@ -10,6 +10,7 @@ import argparse
 
 import strikes_manager
 import order_manager
+import utils
 
 
 def login(cred_file: str):
@@ -53,6 +54,11 @@ def main(args) -> None:
         "QTY": args.quantity,
         "INDEX_OPTION": args.index,
     }
+
+    ## For now simply log the current INDIAVIX
+    ## A very high fix day should be avoided, though the premiums will be very high
+
+    logger.info("INDIA VIX :%.2f" % utils.get_india_vix())
 
     monitor_tag = None
     client = login(cred_file=args.creds)
