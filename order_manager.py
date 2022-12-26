@@ -148,7 +148,7 @@ class Ordermanager:
         if (
             current_time.weekday != expiry_day
             and current_time.hour >= 15
-            and current_time.minute >= 20
+            and current_time.minute >= 24
         ):
             return True
 
