@@ -2,6 +2,7 @@
 ## Last Modified Date  : Dec 25th, 2022
 
 import requests
+import logging
 
 
 def get_india_vix() -> float:
@@ -14,18 +15,21 @@ def get_india_vix() -> float:
         "accept-language": "en,gu;q=0.9,hi;q=0.8",
         "accept-encoding": "gzip, deflate, br",
     }
-    session = requests.Session()
-    request = session.get(baseurl, headers=headers, timeout=5)
-    cookies = dict(request.cookies)
-    response = session.get(url, headers=headers, timeout=5, cookies=cookies)
-    if response.status_code == 200:
-        indices_data = response.json()
+    try:
+        session = requests.Session()
+        request = session.get(baseurl, headers=headers, timeout=5)
+        cookies = dict(request.cookies)
+        response = session.get(url, headers=headers, timeout=5, cookies=cookies)
+        if response.status_code == 200:
+            indices_data = response.json()
 
-        india_vix = list(
-            filter(lambda x: "VIX" in x["indexSymbol"], indices_data["data"])
-        )
+            india_vix = list(
+                filter(lambda x: "VIX" in x["indexSymbol"], indices_data["data"])
+            )
 
-        return india_vix[0]["last"]
+            return india_vix[0]["last"]
+    except:
+        logging.getLogger(__name__).info("Error fecthing INDIA VIX")
     return -1.0
 
 

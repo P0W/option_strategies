@@ -104,6 +104,7 @@ class Ordermanager:
 
     def pnl(self) -> float:
         positions = self.client.positions()
+        # print (print(json.dumps(positions, indent=2)))
         mtom = 0.0
         for item in positions:
             mtom += item["MTOM"]
@@ -169,6 +170,7 @@ class Ordermanager:
                     ## TARGET ACCHEIVED
                     ## Sqaure off both legs
                     self.squareoff(tag=tag)
+                    break
                 self.logger.info("MTM = %.2f" % mtom)
                 time.sleep(5)
             self.logger.info("Not Monitoring Day Over!")

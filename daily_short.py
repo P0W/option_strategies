@@ -64,7 +64,7 @@ def main(args) -> None:
     client = login(cred_file=args.creds)
     sm = strikes_manager.StrikesManager(client=client, config=config)
     om = order_manager.Ordermanager(client=client, config=config)
-    if args.tag != "":
+    if args.tag != "" and args.monitor_target <= 0.0:
         om.debug_status(tag=args.tag)
         return
     elif args.pnl:
@@ -104,9 +104,9 @@ def main(args) -> None:
     if args.monitor_target > 0.0:
         if args.tag != "":
             monitor_tag = args.tag
-        if not monitor_tag:
+        if monitor_tag:
             om.monitor(
-                target=args.mmonitor_target, tag=monitor_tag, expiry_day=EXPIRY_DAY
+                target=args.monitor_target, tag=monitor_tag, expiry_day=EXPIRY_DAY
             )
         else:
             logger.info("No recent order, please provide a tag")
