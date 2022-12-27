@@ -67,7 +67,7 @@ class OrderManager:
             for trade in trdbook:
                 if eoid == int(trade["ExchOrderID"]):
                     scrip = trade["ScripCode"]
-                    self.logger.infdebugo(
+                    self.logger.debug(
                         "Matched for ExchOrderID: %d for Scrip: %d. Placing Stop Loss at %f times"
                         % (eoid, scrip, self.config["SL_FACTOR"])
                     )
