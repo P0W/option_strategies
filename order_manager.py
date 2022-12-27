@@ -1,5 +1,5 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Dec 25th, 2022
+## Last Modified Date  : Dec 27th, 2022
 
 import logging
 import time
@@ -198,26 +198,28 @@ class OrderManager:
         th.join()
         return
 
-    def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
+    def get_executed_orders(self, tag: str) -> None:
         orderbook = self.client.order_book()
         pending_orders = list(filter(lambda x: x["RemoteOrderID"] == tag, orderbook))
         feeds = {}
-        r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
-            "OrdStatusResLst"
-        ]
+        order_status = self.client.fetch_order_status(
+            [{"Exch": "N", "RemoteOrderID": tag}]
+        )["OrdStatusResLst"]
 
         for order in pending_orders:
             if order["OrderStatus"] == "Fully Executed":
                 exchId = int(order["ExchOrderID"])
-                print(exchId)
-                for executed_order in r:
+                for executed_order in order_status:
                     if exchId == executed_order["ExchOrderID"]:
-                        feeds[executed_order["ScripCode"]] = (
-                            executed_order["OrderQty"],
-                            executed_order["OrderRate"],
-                        )
+                        feeds[executed_order["ScripCode"]] = {
+                            "qty": executed_order["OrderQty"],
+                            "rate": executed_order["OrderRate"],
+                        }
                         break
+        return feeds
 
+    def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
+        feeds = self.get_executed_orders(tag)
         self.items = {}
         self.lm = live_feed_manager.LiveFeedManager(self.client, {})
 
@@ -227,8 +229,8 @@ class OrderManager:
                 return
             code = res["code"]
             ltp = res["c"]
-            qty = feeds[code][0]
-            avg = feeds[code][1]
+            qty = feeds[code]["qty"]
+            avg = feeds[code]["rate"]
             self.items[code] = (avg - ltp) * qty
             if len(self.items.keys()) == 2:
                 pnl = 0.0
