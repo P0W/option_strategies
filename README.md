@@ -8,9 +8,8 @@ Prerequisites:
 ---
 
 ```
-usage: daily_short.py [-h] [--creds CREDS] [-s] [--monitor-target MONITOR_TARGET]
-                      [-cp CLOSEST_PREMIUM] [-sl STOP_LOSS_FACTOR] [-q QUANTITY] [--index INDEX]
-                      [--tag TAG] [--pnl] [--strangle] [--straddle]
+usage: daily_short.py [-h] [--creds CREDS] [-s] [--monitor-target MONITOR_TARGET] [-cp CLOSEST_PREMIUM] [-sl STOP_LOSS_FACTOR]
+                      [-q QUANTITY] [--index INDEX] [--tag TAG] [--log-level LOG_LEVEL] [--pnl] [--strangle] [--straddle]
 
 options:
   -h, --help            show this help message and exit
@@ -26,8 +25,10 @@ options:
   -q QUANTITY, --quantity QUANTITY
                         Quantity to short for Nifty (Lot size =50), for 1 lot say 50
   --index INDEX         Index to trade (NIFTY/BANKNIFTY)
-  --tag TAG             Tag to print status of last order for given tag, if combined with
-                        --monitor_target it polls the position for given tag
+  --tag TAG             Tag to print status of last order for given tag, if combined with --monitor_target it polls the
+                        position for given tag
+  --log-level LOG_LEVEL
+                        Log level (INFO|DEBUG) (default = DEBUG)
   --pnl                 Show current PNL
   --strangle            Place Strangle
   --straddle            Place Straddle

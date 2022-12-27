@@ -17,7 +17,7 @@ class StrikesManager:
         self.config = config
 
     def get_current_expiry(self, index: str) -> int:
-        self.logger.info("Pulling the current expiry timestamp")
+        self.logger.debug("Pulling the current expiry timestamp")
         all_nifty_expiry = self.client.get_expiry(exch="N", symbol=index)["Expiry"]
         date_pattern = re.compile("/Date\((\d+).+?\)/")
         min_diff = math.inf
@@ -60,7 +60,7 @@ class StrikesManager:
                     min_diff = diff
                     atm = k
 
-        self.logger.info("Minimum CE/PE Difference = %f" % min_diff)
+        self.logger.debug("Minimum CE/PE Difference = %f" % min_diff)
         return {
             "ce_code": ce_strikes[atm]["code"],
             "ce_ltp": ce_strikes[atm]["ltp"],
@@ -74,7 +74,7 @@ class StrikesManager:
         self, closest_price_thresh: float, index: str
     ) -> dict[str, Any]:
         this_expiry = self.get_current_expiry(index)
-        self.logger.info(
+        self.logger.debug(
             "Finding closest strikes to premium %f from expiry timestamp %d"
             % (self.config["CLOSEST_PREMINUM"], this_expiry)
         )
@@ -108,8 +108,8 @@ class StrikesManager:
                 pe_ltp = ltp
                 pe_name = name
 
-        self.logger.info("Minimum CE Difference = %f" % min_ce_diff)
-        self.logger.info("Minimum PE Difference = %f" % min_pe_diff)
+        self.logger.debug("Minimum CE Difference = %f" % min_ce_diff)
+        self.logger.debug("Minimum PE Difference = %f" % min_pe_diff)
         return {
             "ce_code": ce_code,
             "ce_ltp": ce_ltp,

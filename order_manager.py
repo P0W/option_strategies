@@ -31,7 +31,7 @@ class OrderManager:
                 price,
                 tag,
             )
-            self.logger.info(textinfo)
+            self.logger.debug(textinfo)
             order_status = self.client.place_order(
                 OrderType="S",
                 Exchange="N",
@@ -43,7 +43,7 @@ class OrderManager:
                 RemoteOrderID=tag,
             )
             if order_status["Message"] == "Success":
-                self.logger.info("%s_done" % item)
+                self.logger.debug("%s_done" % item)
 
     def place_short_stop_loss(self, tag: str) -> None:
         self.logger.info("Fetching order status for %s" % tag)
@@ -67,7 +67,7 @@ class OrderManager:
             for trade in trdbook:
                 if eoid == int(trade["ExchOrderID"]):
                     scrip = trade["ScripCode"]
-                    self.logger.info(
+                    self.logger.infdebugo(
                         "Matched for ExchOrderID: %d for Scrip: %d. Placing Stop Loss at %f times"
                         % (eoid, scrip, self.config["SL_FACTOR"])
                     )
@@ -76,11 +76,11 @@ class OrderManager:
                     max_premium += avgprice * qty
                     sl = int(avgprice * self.config["SL_FACTOR"])
                     higher_price = sl + 0.5
-                    self.logger.info(
+                    self.logger.debug(
                         "Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
                         % (scrip, qty, sl, higher_price)
                     )
-                    self.logger.info("USING STOPLOSS TAG:%s" % ("sl" + tag))
+                    self.logger.debug("USING STOPLOSS TAG:%s" % ("sl" + tag))
                     order_status = self.client.place_order(
                         OrderType="B",
                         Exchange="N",
@@ -141,7 +141,6 @@ class OrderManager:
             for trade in trdbook:
                 if eoid == int(trade["ExchOrderID"]):
                     buysell_type = "B"
-                    intra = trade["DelvIntra"]
                     scrip = trade["ScripCode"]
                     qty = trade["Qty"]
                     segment = trade["ExchType"]
@@ -189,7 +188,7 @@ class OrderManager:
                     self.squareoff(tag=tag)
                     self.cancel_pendings(tag=tag)
                     break
-                self.logger.info("MTM = %.2f" % mtom)
+                self.logger.debug("MTM = %.2f" % mtom)
                 time.sleep(5)
             self.logger.info("Not Monitoring Day Over!")
 
@@ -198,7 +197,7 @@ class OrderManager:
         th.join()
         return
 
-    def get_executed_orders(self, tag: str) -> None:
+    def get_executed_orders(self, tag: str) -> dict:
         orderbook = self.client.order_book()
         pending_orders = list(filter(lambda x: x["RemoteOrderID"] == tag, orderbook))
         feeds = {}
@@ -242,6 +241,6 @@ class OrderManager:
                     # Sqaure off both legs
                     self.squareoff(tag=tag)
                     self.cancel_pendings(tag=tag)
-                self.logger.info("Tag = %s MTM = %.2f" % (tag, pnl))
+                self.logger.debug("Tag = %s MTM = %.2f" % (tag, pnl))
 
         self.lm.monitor(list(feeds.keys()), pnl_calculator)

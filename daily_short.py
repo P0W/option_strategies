@@ -33,7 +33,7 @@ def main(args) -> None:
         filemode="a",
         format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
         datefmt="%A,%d/%m/%Y|%H:%M:%S",
-        level=logging.DEBUG,
+        level=args.log_level,
     )
 
     ## Some handy day separater tag as title
@@ -42,7 +42,7 @@ def main(args) -> None:
     )
 
     logger = logging.getLogger(__name__)
-    logger.info("Command Line Arguments : %s" % json.dumps(vars(args), indent=2))
+    logger.debug("Command Line Arguments : %s" % json.dumps(vars(args), indent=2))
 
     EXPIRY_DAY = 0
     now = int(datetime.datetime.now().timestamp())
@@ -56,7 +56,7 @@ def main(args) -> None:
     }
 
     ## For now simply log the current INDIAVIX
-    ## A very high fix day should be avoided, though the premiums will be very high
+    ## A very high vix day should be avoided, though the premiums will be very high
 
     logger.info("INDIA VIX :%.2f" % utils.get_india_vix())
 
@@ -83,7 +83,6 @@ def main(args) -> None:
     straddles = sm.straddle_strikes(index=config["INDEX_OPTION"])
 
     symbol_pattern = "%s\s(\d+)\s" % config["INDEX_OPTION"]
-    logger.info("Symbol Pattern %s" % symbol_pattern)
     st = re.search(symbol_pattern, straddles["ce_name"])
     if st:
         EXPIRY_DAY = int(st.group(1))
@@ -171,6 +170,13 @@ if __name__ == "__main__":
         default="",
         required=False,
         help="Tag to print status of last order for given tag, if combined with --monitor_target it polls the position for given tag",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="DEBUG",
+        required=False,
+        help="Log level  (INFO|DEBUG) (default = DEBUG)",
     )
     parser.add_argument("--pnl", action="store_true", help="Show current PNL")
     parser.add_argument("--strangle", action="store_true", help="Place Strangle")
