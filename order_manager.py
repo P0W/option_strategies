@@ -6,9 +6,10 @@ import time
 import json
 import threading
 import datetime
+import live_feed_manager
 
 
-class Ordermanager:
+class OrderManager:
     def __init__(self, client, config) -> None:
         self.client = client
         self.config = config
@@ -98,17 +99,32 @@ class Ordermanager:
         r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
             "OrdStatusResLst"
         ]
-        print(json.dumps(r, indent=2))
+        print("Order Status", json.dumps(r, indent=2))
         trdbook = self.client.get_tradebook()["TradeBookDetail"]
-        print(json.dumps(trdbook, indent=2))
+        print("Trade Book", json.dumps(trdbook, indent=2))
+        print("Order Book", json.dumps(self.client.order_book(), indent=2))
+        # print("Positions", print(json.dumps(self.client.positions(), indent=2)))
 
     def pnl(self) -> float:
         positions = self.client.positions()
-        # print (print(json.dumps(positions, indent=2)))
+
         mtom = 0.0
-        for item in positions:
-            mtom += item["MTOM"]
+        if positions:
+            for item in positions:
+                mtom += item["MTOM"]
         return mtom
+
+    def cancel_pendings(self, tag: str) -> None:
+        orderbook = self.client.order_book()
+        pending_orders = list(
+            filter(lambda x: x["RemoteOrderID"] == "sl" + tag, orderbook)
+        )
+        for order in pending_orders:
+            if order["OrderStatus"] == "Pending":
+                self.logger.info(
+                    "Cancelled Exchange Order ID %d" % order["ExchOrderID"]
+                )
+                self.client.cancel_order(exch_order_id=order["ExchOrderID"])
 
     def squareoff(self, tag: str) -> None:
         id = []
@@ -170,6 +186,7 @@ class Ordermanager:
                     ## TARGET ACCHEIVED
                     ## Sqaure off both legs
                     self.squareoff(tag=tag)
+                    self.cancel_pendings(tag=tag)
                     break
                 self.logger.info("MTM = %.2f" % mtom)
                 time.sleep(5)
@@ -179,3 +196,46 @@ class Ordermanager:
         th.start()
         th.join()
         return
+
+    def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
+        orderbook = self.client.order_book()
+        pending_orders = list(filter(lambda x: x["RemoteOrderID"] == tag, orderbook))
+        feeds = {}
+        r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
+            "OrdStatusResLst"
+        ]
+
+        for order in pending_orders:
+            if order["OrderStatus"] == "Fully Executed":
+                exchId = int(order["ExchOrderID"])
+                print(exchId)
+                for executed_order in r:
+                    if exchId == executed_order["ExchOrderID"]:
+                        feeds[executed_order["ScripCode"]] = (
+                            executed_order["OrderQty"],
+                            executed_order["OrderRate"],
+                        )
+                        break
+
+        self.items = {}
+
+        def pnl_calculator(res: dict):
+            code = res["code"]
+            ltp = res["c"]
+            qty = feeds[code][0]
+            avg = feeds[code][1]
+            self.items[code] = (avg - ltp) * qty
+            if len(self.items.keys()) == 2:
+                pnl = 0.0
+                for k, v in self.items.items():
+                    pnl += v
+                self.items = {}
+                if pnl >= target:
+                    # TARGET ACCHEIVED
+                    # Sqaure off both legs
+                    self.squareoff(tag=tag)
+                    self.cancel_pendings(tag=tag)
+                self.logger.info("Tag = %s MTM = %.2f" % (tag, pnl))
+
+        lm = live_feed_manager.LiveFeedManager(self.client, {})
+        lm.monitor(list(feeds.keys()), pnl_calculator)

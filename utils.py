@@ -35,5 +35,3 @@ def get_india_vix() -> float:
 
 if __name__ == "__main__":
     print(get_india_vix())
-
-    import requests
