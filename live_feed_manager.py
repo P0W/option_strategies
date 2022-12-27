@@ -35,6 +35,9 @@ class LiveFeedManager:
         self.client.error_data(on_error)
         self.client.receive_data(on_message)
 
+    def stop(self):
+        self.client.close_data()
+
 
 if __name__ == "__main__":
     import daily_short

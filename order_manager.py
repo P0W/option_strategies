@@ -14,6 +14,7 @@ class OrderManager:
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.lm = None
 
     def place_short(self, strikes: dict, tag: str) -> None:
         for item in ["ce", "pe"]:
@@ -218,8 +219,12 @@ class OrderManager:
                         break
 
         self.items = {}
+        self.lm = live_feed_manager.LiveFeedManager(self.client, {})
 
         def pnl_calculator(res: dict):
+            if self.day_over(expiry_day):
+                self.lm.stop()
+                return
             code = res["code"]
             ltp = res["c"]
             qty = feeds[code][0]
@@ -237,5 +242,4 @@ class OrderManager:
                     self.cancel_pendings(tag=tag)
                 self.logger.info("Tag = %s MTM = %.2f" % (tag, pnl))
 
-        lm = live_feed_manager.LiveFeedManager(self.client, {})
-        lm.monitor(list(feeds.keys()), pnl_calculator)
+        self.lm.monitor(list(feeds.keys()), pnl_calculator)
