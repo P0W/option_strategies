@@ -1,5 +1,5 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Dec 27th, 2022
+## Last Modified Date  : Dec 28th, 2022
 
 import logging
 import json
@@ -11,12 +11,13 @@ class LiveFeedManager:
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.req_list = []
 
     def monitor(self, scrip_codes: List[int], callback: Callable[[dict], None]) -> None:
-        req_list = list(
+        self.req_list = list(
             map(lambda x: {"Exch": "N", "ExchType": "D", "ScripCode": x}, scrip_codes)
         )
-        req_data = self.client.Request_Feed("mf", "s", req_list)
+        req_data = self.client.Request_Feed("mf", "s", self.req_list)
 
         def on_error(ws, err):
             self.logger.error(ws, err)
@@ -39,7 +40,10 @@ class LiveFeedManager:
         self.client.receive_data(on_message)
 
     def stop(self):
-        self.client.close_data()
+        if len(self.req_list) > 0:
+            self.client.Request_Feed("mf", "u", self.req_list)
+            self.client.close_data()
+            self.req_list = []
 
 
 if __name__ == "__main__":
@@ -47,8 +51,13 @@ if __name__ == "__main__":
 
     client = daily_short.login("creds.json")
     lm = LiveFeedManager(client, {})
+    test_counter = 0
 
     def apply(response: dict) -> None:
+        global tetest_counterst
         print(response)
+        if test_counter == 5:
+            lm.stop()
+        test_counter += 1
 
     lm.monitor([58419, 40375], apply)
