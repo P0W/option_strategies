@@ -240,7 +240,9 @@ class OrderManager:
                     # TARGET ACCHEIVED
                     # Sqaure off both legs
                     self.squareoff(tag=tag)
-                    self.cancel_pendings(tag=tag)
+                    #self.cancel_pendings(tag=tag)
+                    self.lm.stop()
+                    self.logger.info("Target achived please cancel the pending stop loss orders")
                 self.logger.debug("Tag = %s MTM = %.2f" % (tag, pnl))
 
         self.lm.monitor(list(feeds.keys()), pnl_calculator)
