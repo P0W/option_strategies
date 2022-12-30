@@ -44,6 +44,7 @@ class OrderManager:
             )
             if order_status["Message"] == "Success":
                 self.logger.debug("%s_done" % item)
+            time.sleep(2)
 
     def place_short_stop_loss(self, tag: str) -> None:
         self.logger.info("Fetching order status for %s" % tag)
@@ -63,6 +64,7 @@ class OrderManager:
         self.logger.info("Fetching TradeBookDetail for %s" % tag)
         trdbook = self.client.get_tradebook()["TradeBookDetail"]
         max_premium = 0.0
+        max_loss = 0.0
         for eoid in id:
             for trade in trdbook:
                 if eoid == int(trade["ExchOrderID"]):
@@ -74,8 +76,10 @@ class OrderManager:
                     qty = trade["Qty"]
                     avgprice = trade["Rate"]
                     max_premium += avgprice * qty
+                     
                     sl = int(avgprice * self.config["SL_FACTOR"])
                     higher_price = sl + 0.5
+                    max_loss -= (higher_price - avgprice) * qty
                     self.logger.debug(
                         "Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
                         % (scrip, qty, sl, higher_price)
@@ -94,7 +98,9 @@ class OrderManager:
                     )
                     if order_status["Message"] == "Success":
                         self.logger.info("Placed for %d" % scrip)
+                    time.sleep(2)
         self.logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
+        self.logger.info("Maximum Loss of :%f INR" % max_loss)
 
     def debug_status(self, tag: str) -> None:
         r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
