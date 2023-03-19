@@ -25,17 +25,27 @@ def login(cred_file: str):
     return client
 
 
-def main(args) -> None:
+def login_from_json(cred: dict):
+    client = FivePaisaClient(
+        email=cred["email"], passwd=cred["passwd"], dob=cred["dob"], cred=cred
+    )
+    client.login()
 
+    return client
+
+
+def configure_logger(log_level):
     ## Setup logging
     logging.basicConfig(
         filename="daily_logs.txt",
         filemode="a",
         format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
         datefmt="%A,%d/%m/%Y|%H:%M:%S",
-        level=args.log_level,
+        level=log_level,
     )
 
+
+def main(args) -> None:
     ## Some handy day separater tag as title
     logging.info(
         "STARTING ALGO TRADING WEEKLY OTPTIONS DATED: |%s|" % datetime.datetime.now()
@@ -57,11 +67,18 @@ def main(args) -> None:
 
     ## For now simply log the current INDIAVIX
     ## A very high vix day should be avoided, though the premiums will be very high
-
-    logger.info("INDIA VIX :%.2f" % utils.get_india_vix())
+    current_vix = utils.get_india_vix()
+    logger.info("INDIA VIX :%.2f" % current_vix)
+    if current_vix > 20.0:
+        logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
+        return
 
     monitor_tag = None
-    client = login(cred_file=args.creds)
+
+    if type(args.creds) is dict:
+        client = login_from_json(args.creds)
+    else:
+        client = login(cred_file=args.creds)
     sm = strikes_manager.StrikesManager(client=client, config=config)
     om = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0:
@@ -182,4 +199,5 @@ if __name__ == "__main__":
     parser.add_argument("--strangle", action="store_true", help="Place Strangle")
     parser.add_argument("--straddle", action="store_true", help="Place Straddle")
     args = parser.parse_args()
+    configure_logger(args.log_level)
     main(args)

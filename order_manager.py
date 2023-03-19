@@ -59,7 +59,7 @@ class OrderManager:
                 if eoid != "":
                     id.append(eoid)
             self.logger.info("Waiting for order execution")
-            time.sleep(5)
+            time.sleep(2)
 
         self.logger.info("Fetching TradeBookDetail for %s" % tag)
         trdbook = self.client.get_tradebook()["TradeBookDetail"]
@@ -76,7 +76,7 @@ class OrderManager:
                     qty = trade["Qty"]
                     avgprice = trade["Rate"]
                     max_premium += avgprice * qty
-                     
+
                     sl = int(avgprice * self.config["SL_FACTOR"])
                     higher_price = sl + 0.5
                     max_loss -= (higher_price - avgprice) * qty
@@ -246,9 +246,11 @@ class OrderManager:
                     # TARGET ACCHEIVED
                     # Sqaure off both legs
                     self.squareoff(tag=tag)
-                    #self.cancel_pendings(tag=tag)
+                    # self.cancel_pendings(tag=tag)
                     self.lm.stop()
-                    self.logger.info("Target achived please cancel the pending stop loss orders")
+                    self.logger.info(
+                        "Target achived please cancel the pending stop loss orders"
+                    )
                 self.logger.debug("Tag = %s MTM = %.2f" % (tag, pnl))
 
         self.lm.monitor(list(feeds.keys()), pnl_calculator)
