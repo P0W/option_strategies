@@ -4,7 +4,11 @@
 import requests
 import logging
 import json
+import sys
 from py5paisa import *
+from strikes_manager import StrikesManager
+import pandas as pd
+import datetime
 
 
 def get_india_vix() -> float:
@@ -47,9 +51,75 @@ def login(cred_file: str):
     return client
 
 
+def test():
+    client = login("creds.json")
+    sm = StrikesManager(client, {})
+
+    straddle_strikes = sm.strangle_strikes(5.0, "NIFTY")
+    print(straddle_strikes)
+    df_ce = client.historical_data(
+        "N", "D", straddle_strikes["ce_code"], "5m", "2023-06-27", "2023-06-28"
+    )
+    df_pe = client.historical_data(
+        "N", "D", straddle_strikes["pe_code"], "5m", "2023-06-27", "2023-06-28"
+    )
+
+    ## drop null or nan values
+    df_ce = df_ce.dropna()
+    df_pe = df_pe.dropna()
+
+    ## get the Close price and Datetime from both the dataframes and make a new dataframe
+    df_ce = df_ce[["Close", "Datetime"]]
+    df_pe = df_pe[["Close", "Datetime"]]
+    df_ce.columns = ["ce_close", "Datetime"]
+    df_pe.columns = ["pe_close", "Datetime"]
+    df_ce_pe = pd.merge(df_ce, df_pe, on="Datetime")
+    df_ce_pe["ce_pe_close"] = df_ce_pe["ce_close"] + df_ce_pe["pe_close"]
+    df_ce_pe["ce_pe_close"] = df_ce_pe["ce_pe_close"].round(2)
+    df_ce_pe["Datetime"] = pd.to_datetime(df_ce_pe["Datetime"])
+    df_ce_pe["Datetime"] = df_ce_pe["Datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    df_ce_pe["Datetime"] = pd.to_datetime(df_ce_pe["Datetime"])
+    df_ce_pe = df_ce_pe.set_index("Datetime")
+    df_ce_pe = df_ce_pe.sort_index()
+    df_ce_pe = df_ce_pe.reset_index()
+
+    print(df_ce_pe)
+
+    ## plot the graph
+    import matplotlib.pyplot as plt
+
+    ## show a continuous line graph for the close price
+    plt.plot(
+        df_ce_pe["Datetime"],
+        df_ce_pe["ce_pe_close"],
+        color="blue",
+        linestyle="solid",
+        linewidth=3,
+    )
+    ## plot ce and pe close price
+    plt.plot(
+        df_ce_pe["Datetime"],
+        df_ce_pe["ce_close"],
+        color="red",
+        linestyle="solid",
+        linewidth=1,
+    )
+    plt.plot(
+        df_ce_pe["Datetime"],
+        df_ce_pe["pe_close"],
+        color="green",
+        linestyle="solid",
+        linewidth=1,
+    )
+    plt.show()
+
+    sys.exit()
+
+
 if __name__ == "__main__":
     # print(get_india_vix())
     client = login("creds.json")
+    test()
     print(client.positions())
     # client.bo_order(OrderType='S',
     #                 Exchange='N',

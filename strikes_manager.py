@@ -74,10 +74,12 @@ class StrikesManager:
         self, closest_price_thresh: float, index: str
     ) -> dict[str, Any]:
         this_expiry = self.get_current_expiry(index)
-        self.logger.debug(
-            "Finding closest strikes to premium %f from expiry timestamp %d"
-            % (self.config["CLOSEST_PREMINUM"], this_expiry)
-        )
+        if "CLOSEST_PREMINUM" in self.config:
+            closest_price_thresh = float(self.config["CLOSEST_PREMINUM"])
+            self.logger.debug(
+                "Finding closest strikes to premium %f from expiry timestamp %d"
+                % (closest_price_thresh, this_expiry)
+            )
         contracts = self.client.get_option_chain(
             exch="N", symbol=index, expire=this_expiry
         )["Options"]
