@@ -77,7 +77,7 @@ python .\daily_short.py --index NIFTY -sl 1.55 --strangle -q 400 -cp 8.0
 ```sh
 python .\daily_short.py --index BANKNIFTY -sl 1.55 --straddle -q 150
 ```
-3. _Short straddle with 2 lots of FINNIFTY on strikes having preminum closest to 12.0 INR (40*2 = 80) | Stop Loss: 55 %_
+3. _Short straddle with 2 lots of FINNIFTY (40*2 = 80) on strikes having preminum closest to 12.0 INR | Stop Loss: 65 %_
 ```sh
 python .\daily_short.py --index FINNIFTY -sl 1.65 --strangle -q 80 -cp 12.5
 ```
@@ -90,4 +90,6 @@ A simulation using [**algotest.in**](https://algotest.in/) is performed for peri
 
 For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
-Thank you for using the Daily Short Strangle/Straddle Strategy repository. Happy trading!
+Thank you for using the Daily Short Strangle/Straddle strategy repository. Clarifications/suggestions are welcomed. 
+
+Happy trading!
