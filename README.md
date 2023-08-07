@@ -32,3 +32,6 @@ options:
   --strangle            Place Strangle
   --straddle            Place Straddle
   ```
+
+---
+To deploy on azure follow details in **DailyShorts** folder
