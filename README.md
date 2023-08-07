@@ -1,6 +1,7 @@
-## Daily Short Strangle/Straddle Strategy for Weekly Contracts (NIFTY, BANKNIFTY, and FINNIFTY)
 
-Welcome to the README for the **Daily Short Strangle/Straddle Strategy** Git repository. This repository contains a Python-based automated trading strategy for implementing daily short strangle/straddle options trading on weekly contracts of NIFTY, BANKNIFTY, and FINNIFTY indices. This README provides comprehensive instructions for setting up the environment and deploying the strategy effectively.
+
+This repository contains a Python-based automated trading strategy for implementing daily short strangle/straddle options trading on weekly contracts of NIFTY, BANKNIFTY, and FINNIFTY indices. 
+This README provides comprehensive instructions for setting up the environment and deploying the strategy effectively.
 
 ## Prerequisites
 
@@ -37,7 +38,7 @@ Create a file named `creds.json` in the root directory of your project. Populate
 
 ## Usage
 
-The trading strategy is implemented through the `daily_short.py` script. Here are the available command-line options:
+The trading strategy is implemented through the [`daily_short.py`](https://github.com/P0W/option_strategies/tree/main/daily_short.py) script. Here are the available command-line options:
 
 <details>
 <summary>Click to expand</summary>
@@ -70,6 +71,6 @@ Options:
 
 ## Deployment on Azure
 
-For detailed deployment instructions on Azure, refer to the `DailyShorts` folder within this repository.
+For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
 Thank you for using the Daily Short Strangle/Straddle Strategy repository. Happy trading!
