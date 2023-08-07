@@ -1,4 +1,4 @@
-*Daily strangle, expiry straddle on weekly contracts (NIFTY,BANKNIFTY AND FINNIFTY)*
+*Daily short strangle/starddle on weekly contracts (NIFTY,BANKNIFTY AND FINNIFTY)*
 ---
 
 Prerequisites:
