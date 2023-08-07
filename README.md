@@ -3,11 +3,13 @@
 This repository contains a Python-based automated trading strategy for implementing daily short strangle/straddle options trading on weekly contracts of NIFTY, BANKNIFTY, and FINNIFTY indices. 
 This README provides comprehensive instructions for setting up the environment and deploying the strategy effectively.
 
+---
+
 ## Prerequisites
 
 Before you begin, ensure you have the following prerequisites in place:
 
-- **5paisa Brokerage Account:** You need an active brokerage account with 5paisa to execute trades through their API.
+- **5paisa Brokerage Account:** You need an active [**brokerage account**](https://www.5paisa.com/demat-account?ReferralCode=58194614&ReturnUrl=invest-open-account)  with 5paisa to execute trades through their API.
 - **Python 3.9+:** The strategy is built using Python, so you need to have Python version 3.9 or higher installed.
 - **5paisa Python SDK:** You must install the `py5paisa` Python package, which serves as the SDK for interacting with the 5paisa API.
 
@@ -67,7 +69,8 @@ Options:
   ```
 </details>
 
----
+## Backtest
+A simulation using [**algotest.in**](https://algotest.in/) is performed for period of Jan 1, 2021 to Aug 6, 2023. The results are added [`here`](https://github.com/P0W/option_strategies/tree/main/backtest/algotest_strategy_short_strangle_nifty.pdf)
 
 ## Deployment on Azure
 
