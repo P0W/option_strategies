@@ -1,5 +1,5 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Dec 27th, 2022
+## Last Modified Date  : Aug 7th, 2023
 
 import logging
 import time
@@ -15,6 +15,7 @@ class OrderManager:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.lm = None
+        self.target_achieved = False
 
     def place_short(self, strikes: dict, tag: str) -> None:
         for item in ["ce", "pe"]:
@@ -121,6 +122,7 @@ class OrderManager:
                 mtom += item["MTOM"]
         return mtom
 
+    @DeprecationWarning
     def cancel_pendings(self, tag: str) -> None:
         orderbook = self.client.order_book()
         pending_orders = list(
@@ -132,6 +134,18 @@ class OrderManager:
                     "Cancelled Exchange Order ID %d" % order["ExchOrderID"]
                 )
                 self.client.cancel_order(exch_order_id=order["ExchOrderID"])
+
+    def get_sl_pending_orders(self, slTag: str):
+        r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": slTag}])[
+            "OrdStatusResLst"
+        ]
+        ## get all ExchOrderID from r where "PendingQty" is not 0, Status is "Placed"
+        slExchOrderIDs = [
+            {"ExchOrderID": "%s" % x["ExchOrderID"]}
+            for x in r
+            if x["PendingQty"] != 0 and x["Status"] == "Placed"
+        ]
+        return slExchOrderIDs
 
     def squareoff(self, tag: str) -> None:
         id = []
@@ -184,6 +198,7 @@ class OrderManager:
             return True
         return False
 
+    @DeprecationWarning
     def monitor(self, target: float, tag: str, expiry_day: int) -> None:
         def poll():
             while not self.day_over(expiry_day):
@@ -224,9 +239,12 @@ class OrderManager:
         return feeds
 
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
-        feeds = self.get_executed_orders(tag)
+        executedOrders = self.get_executed_orders(tag)
+        sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
         self.items = {}
-        self.lm = live_feed_manager.LiveFeedManager(self.client, {})
+        self.lm = live_feed_manager.LiveFeedManagerV2(self.client, {})
+        ## Create a new state for this monitor
+        self.target_achieved = False
 
         def pnl_calculator(res: dict):
             if self.day_over(expiry_day):
@@ -234,23 +252,25 @@ class OrderManager:
                 return
             code = res["code"]
             ltp = res["c"]
-            qty = feeds[code]["qty"]
-            avg = feeds[code]["rate"]
+            qty = executedOrders[code]["qty"]
+            avg = executedOrders[code]["rate"]
             self.items[code] = (avg - ltp) * qty
             if len(self.items.keys()) == 2:
                 pnl = 0.0
                 for k, v in self.items.items():
                     pnl += v
                 self.items = {}
-                if pnl >= target:
-                    # TARGET ACCHEIVED
+                if pnl >= target and not self.target_achieved:
+                    # TARGET ACHEIVED
                     # Sqaure off both legs
+                    self.target_achieved = True
+                    self.logger.info("Target acheived for tag %s" % tag)
+                    self.logger.info("Squaring off both legs")
                     self.squareoff(tag=tag)
-                    # self.cancel_pendings(tag=tag)
+                    self.logger.info("Cancelling pending stop loss orders")
+                    self.client.cancel_bulk_order(sl_exchan_orders)
+                    self.logger.info("Stopping live feed")
                     self.lm.stop()
-                    self.logger.info(
-                        "Target achived please cancel the pending stop loss orders"
-                    )
                 self.logger.debug("Tag = %s MTM = %.2f" % (tag, pnl))
 
-        self.lm.monitor(list(feeds.keys()), pnl_calculator)
+        self.lm.monitor(list(executedOrders.keys()), pnl_calculator)
