@@ -67,6 +67,20 @@ Options:
   --strangle            Place Strangle orders
   --straddle            Place Straddle orders
   ```
+
+## Sample Run
+1. _Short strangle with 8 lots of NIFTY (8*50 = 400) on strikes having preminum closest to 8.0 INR | Stop Loss: 55 %_
+```sh
+python .\daily_short.py --index NIFTY -sl 1.55 --strangle -q 400 -cp 8.0
+```
+2. _Short straddle with 10 lots of BANKNIFTY  (15*10 = 150) | Stop Loss: 55 %_
+```sh
+python .\daily_short.py --index BANKNIFTY -sl 1.55 --straddle -q 150
+```
+3. _Short straddle with 2 lots of FINNIFTY on strikes having preminum closest to 12.0 INR (40*2 = 80) | Stop Loss: 55 %_
+```sh
+python .\daily_short.py --index FINNIFTY -sl 1.65 --strangle -q 80 -cp 12.5
+```
 </details>
 
 ## Backtest
