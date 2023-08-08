@@ -255,35 +255,39 @@ class OrderManager:
                 qty = items["executedOrders"][code]["qty"]
                 avg = items["executedOrders"][code]["rate"]
                 items["strikes"][code] = (avg - ltp) * qty
+                freq = items["freq"]
 
                 if (
                     len(items["strikes"].keys()) == 2
                 ):  ## wait for both legs prices availability
                     ## calculate MTM summing the pnl of each leg
                     total_pnl = sum(items["strikes"].values())
-                    logging.info(
-                        "Current MTM: %f %s"
-                        % (total_pnl, json.dumps(items["strikes"], indent=3))
-                    )
+                    ## log when time elaspse since last is more than freq
+                    if time.time() - items["last"] > freq:
+                        self.logger.info(
+                            "Current MTM: %f %s"
+                            % (total_pnl, json.dumps(items["strikes"], indent=3))
+                        )
+                        items["last"] = time.time()
                     if total_pnl >= target:
                         # TARGET ACHEIVED
-                        self.logging.info("Target Achieved: %f" % total_pnl)
+                        self.logger.info("Target Achieved: %f" % total_pnl)
                         # Sqaure off both legs
-                        self.logging.info("Squaring off both legs")
+                        self.logger.info("Squaring off both legs")
                         self.squareoff(tag=tag)
-                        self.logging.info("Cancelling pending stop loss orders")
+                        self.logger.info("Cancelling pending stop loss orders")
                         self.client.cancel_bulk_order(items["sl_exchan_orders"])
-                        self.logging.info("Stopping live feed")
+                        self.logger.info("Stopping live feed")
                         self.lm.stop()
                     elif total_pnl <= mtm_loss:
                         # STOP LOSS HIT
-                        self.logging.info("Stop Loss Hit: %f" % total_pnl)
+                        self.logger.info("Stop Loss Hit: %f" % total_pnl)
                         # Sqaure off both legs
-                        self.logging.info("Squaring off both legs")
+                        self.logger.info("Squaring off both legs")
                         self.squareoff(tag=tag)
-                        self.logging.info("Cancelling pending target orders")
+                        self.logger.info("Cancelling pending target orders")
                         self.client.cancel_bulk_order(items["sl_exchan_orders"])
-                        self.logging.info("Stopping live feed")
+                        self.logger.info("Stopping live feed")
                         self.lm.stop()
             except Exception as e:
                 self.logger.error(e)
@@ -297,6 +301,8 @@ class OrderManager:
                         "sl_exchan_orders": sl_exchan_orders,
                         "expiry_day": expiry_day,
                         "executedOrders": executedOrders,
+                        "freq": 15,  # seconds
+                        "last": time.time(),
                     },
                     indent=3,
                 )
@@ -311,6 +317,8 @@ class OrderManager:
                     "sl_exchan_orders": sl_exchan_orders,
                     "expiry_day": expiry_day,
                     "executedOrders": executedOrders,
+                    "freq": 15,  # seconds
+                    "last": time.time(),
                 },
             )
         except Exception as e:
