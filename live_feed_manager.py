@@ -55,6 +55,7 @@ class LiveFeedManagerV2:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.req_list = []
+        self.unsubscribe_list = []
         self.monitoring_active = False
         self.monitoring_lock = threading.Lock()
         self.shutdown_flag = threading.Event()
@@ -121,7 +122,35 @@ class LiveFeedManagerV2:
                         }
                     )
                 except Exception as e:
-                    self.logger.error(f"Error processing message: {e}")
+                    if "Status" in message and "Fully Executed" in message:
+                        ## if message["ScripCode"] in self.req_list add to unsubscribe_list
+                        ## and send the list to the client
+                        if message["ScripCode"] in list(
+                            map(self.req_list, lambda x: x["ScripCode"])
+                        ):
+                            self.unsubscribe_list.append(
+                                {
+                                    "Exch": "N",
+                                    "ExchType": "D",
+                                    "ScripCode": message["ScripCode"],
+                                }
+                            )
+                            self.logger.info(
+                                f"Unsubscribing from scrip: {message['ScripCode']}"
+                            )
+                            req_data = self.client.Request_Feed(
+                                "mf", "u", self.unsubscribe_list
+                            )
+                            ## bug in 5paisa websocket send_data implementation, use the object directly
+                            self.client.ws.send(json.dumps(req_data))
+                            self.unsubscribe_list = []
+                        else:
+                            self.logger.info(
+                                f"Order Executed response on websocket: {message}"
+                            )
+                    else:
+                        self.logger.error(f"Error processing message: {message}")
+                        self.logger.error(f"Error: {e}")
 
             self.logger.info("Connecting to live feed.")
             self.client.connect(req_data)
