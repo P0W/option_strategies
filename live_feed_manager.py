@@ -7,6 +7,7 @@ import queue
 import threading
 from typing import List, Callable
 
+
 @DeprecationWarning
 class LiveFeedManager:
     def __init__(self, client, config) -> None:
@@ -61,21 +62,36 @@ class LiveFeedManagerV2:
         self.receiver_thread = None
         self.dequeuer_thread = None
 
-    def callback_dequeuer(self, callback):
+    def callback_dequeuer(
+        self,
+        callback: dict,
+        target_profit: float,
+        max_stop_loss: float,
+        user_data: dict,
+    ):
         while not self.shutdown_flag.is_set():
             try:
                 callback_data = self.callback_queue.get(
-                    timeout=60
+                    timeout=15
                 )  ## wait for 60 seconds for new data
-                callback(callback_data)
+                callback(callback_data, target_profit, max_stop_loss, user_data)
                 self.callback_queue.task_done()
             except queue.Empty:
                 ## no live feed data received in the last 5 seconds
                 ## stop the monitoring session
                 self.stop()
 
-    def monitor(self, scrip_codes: List[int], callback: Callable[[dict], None]) -> None:
-        self.logger.info("Starting monitoring session.")
+    def monitor(
+        self,
+        scrip_codes: List[int],
+        callback: Callable[[dict, float, float, dict], None],
+        target_profit: float,
+        max_stop_loss: float,
+        user_data: dict,
+    ) -> None:
+        self.logger.info("Starting monitoring session for scrips: %s", scrip_codes)
+        self.logger.info("Target Profit: %f", target_profit)
+        self.logger.info("Max Stop Loss: %f", max_stop_loss)
         with self.monitoring_lock:
             if self.monitoring_active:
                 self.logger.warning(
@@ -113,7 +129,8 @@ class LiveFeedManagerV2:
 
             # Start the callback_dequeuer thread
             self.dequeuer_thread = threading.Thread(
-                target=self.callback_dequeuer, args=(callback,)
+                target=self.callback_dequeuer,
+                args=(callback, target_profit, max_stop_loss, user_data),
             )
             self.dequeuer_thread.start()
 
@@ -131,10 +148,10 @@ class LiveFeedManagerV2:
                 self.logger.warning("Monitoring is not active. Cannot stop.")
                 return
 
-            self.logger.info("Stopping monitoring session.")
-
             # Signal the monitoring thread to stop
             self.shutdown_flag.set()
+
+            self.logger.info("Stopping monitoring session.")
 
             # Clean up resources
             payload = self.client.Request_Feed("mf", "u", self.req_list)
@@ -150,19 +167,52 @@ class LiveFeedManagerV2:
             self.receiver_thread.join()
 
 
+## Example usage
 if __name__ == "__main__":
     import daily_short
+    import strikes_manager
 
     client = daily_short.login("creds.json")
     daily_short.configure_logger("DEBUG")
+    sm = strikes_manager.StrikesManager(client, {})
+    staddle_strikes = sm.straddle_strikes("FINNIFTY")
+
+    straddle_premium = staddle_strikes["ce_ltp"] + staddle_strikes["pe_ltp"]
     lm = LiveFeedManagerV2(client, {})
-    test_counter = 0
 
-    def apply(response: dict) -> None:
-        global test_counter
-        logging.info(response)
-        if test_counter == 5:
-            lm.stop()
-        test_counter += 1
+    def straddle_calculator(res: dict, target: float, mtm_loss: float, items: dict):
+        code = res["code"]
+        ltp = res["c"]
 
-    lm.monitor([58419, 40375], apply)
+        items[code] = (ltp) * 1
+        if len(items.keys()) == 2:  ## wait for both legs prices availability
+            ## calculate MTM summing the pnl of each leg
+            total_pnl = sum(items.values())
+            logging.info(
+                "Total Straddle Preminum: %f %s"
+                % (total_pnl, json.dumps(items, indent=3))
+            )
+            if total_pnl >= target:
+                # TARGET ACHEIVED
+                logging.info("Target Achieved: %f" % total_pnl)
+                # Sqaure off both legs
+                logging.info("Squaring off both legs")
+                logging.info("Cancelling pending stop loss orders")
+                logging.info("Stopping live feed")
+                lm.stop()
+            elif total_pnl <= mtm_loss:
+                # STOP LOSS HIT
+                logging.info("Stop Loss Hit: %f" % total_pnl)
+                # Sqaure off both legs
+                logging.info("Squaring off both legs")
+                logging.info("Cancelling pending target orders")
+                logging.info("Stopping live feed")
+                lm.stop()
+
+    lm.monitor(
+        [staddle_strikes["ce_code"], staddle_strikes["pe_code"]],
+        straddle_calculator,
+        target_profit=straddle_premium * 1.01,
+        max_stop_loss=straddle_premium * 0.99,
+        user_data={},
+    )

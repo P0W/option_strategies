@@ -241,36 +241,77 @@ class OrderManager:
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
         executedOrders = self.get_executed_orders(tag)
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
-        self.items = {}
         self.lm = live_feed_manager.LiveFeedManagerV2(self.client, {})
-        ## Create a new state for this monitor
-        self.target_achieved = False
 
-        def pnl_calculator(res: dict):
-            if self.day_over(expiry_day):
-                self.lm.stop()
-                return
-            code = res["code"]
-            ltp = res["c"]
-            qty = executedOrders[code]["qty"]
-            avg = executedOrders[code]["rate"]
-            self.items[code] = (avg - ltp) * qty
-            if len(self.items.keys()) == 2:
-                pnl = 0.0
-                for k, v in self.items.items():
-                    pnl += v
-                self.items = {}
-                if pnl >= target and not self.target_achieved:
-                    # TARGET ACHEIVED
-                    # Sqaure off both legs
-                    self.target_achieved = True
-                    self.logger.info("Target acheived for tag %s" % tag)
-                    self.logger.info("Squaring off both legs")
-                    self.squareoff(tag=tag)
-                    self.logger.info("Cancelling pending stop loss orders")
-                    self.client.cancel_bulk_order(sl_exchan_orders)
-                    self.logger.info("Stopping live feed")
+        def pnl_calculator(res: dict, target: float, mtm_loss: float, items: dict):
+            try:
+                if self.day_over(items["expiry_day"]):
+                    self.logger.info("Day Over!")
                     self.lm.stop()
-                self.logger.debug("Tag = %s MTM = %.2f" % (tag, pnl))
+                    return
 
-        self.lm.monitor(list(executedOrders.keys()), pnl_calculator)
+                code = res["code"]
+                ltp = res["c"]
+                qty = items["executedOrders"][code]["qty"]
+                avg = items["executedOrders"][code]["rate"]
+                items["strikes"][code] = (avg - ltp) * qty
+
+                if (
+                    len(items["strikes"].keys()) == 2
+                ):  ## wait for both legs prices availability
+                    ## calculate MTM summing the pnl of each leg
+                    total_pnl = sum(items["strikes"].values())
+                    logging.info(
+                        "Current MTM: %f %s"
+                        % (total_pnl, json.dumps(items["strikes"], indent=3))
+                    )
+                    if total_pnl >= target:
+                        # TARGET ACHEIVED
+                        self.logging.info("Target Achieved: %f" % total_pnl)
+                        # Sqaure off both legs
+                        self.logging.info("Squaring off both legs")
+                        self.squareoff(tag=tag)
+                        self.logging.info("Cancelling pending stop loss orders")
+                        self.client.cancel_bulk_order(items["sl_exchan_orders"])
+                        self.logging.info("Stopping live feed")
+                        self.lm.stop()
+                    elif total_pnl <= mtm_loss:
+                        # STOP LOSS HIT
+                        self.logging.info("Stop Loss Hit: %f" % total_pnl)
+                        # Sqaure off both legs
+                        self.logging.info("Squaring off both legs")
+                        self.squareoff(tag=tag)
+                        self.logging.info("Cancelling pending target orders")
+                        self.client.cancel_bulk_order(items["sl_exchan_orders"])
+                        self.logging.info("Stopping live feed")
+                        self.lm.stop()
+            except Exception as e:
+                self.logger.error(e)
+
+        try:
+            self.logger.info(
+                "user_data: %s"
+                % json.dumps(
+                    {
+                        "strikes": {},
+                        "sl_exchan_orders": sl_exchan_orders,
+                        "expiry_day": expiry_day,
+                        "executedOrders": executedOrders,
+                    },
+                    indent=3,
+                )
+            )
+            self.lm.monitor(
+                list(executedOrders.keys()),
+                callback=pnl_calculator,
+                target_profit=target,
+                max_stop_loss=-2 * target,
+                user_data={
+                    "strikes": {},
+                    "sl_exchan_orders": sl_exchan_orders,
+                    "expiry_day": expiry_day,
+                    "executedOrders": executedOrders,
+                },
+            )
+        except Exception as e:
+            self.logger.error(e)

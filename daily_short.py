@@ -11,6 +11,7 @@ import argparse
 import strikes_manager
 import order_manager
 import utils
+import sys
 
 
 def login(cred_file: str):
@@ -37,21 +38,23 @@ def login_from_json(cred: dict):
 def configure_logger(log_level):
     ## Setup logging
     logging.basicConfig(
-        filename="daily_logs.txt",
-        filemode="a",
         format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
         datefmt="%A,%d/%m/%Y|%H:%M:%S",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("daily_logs_new.txt"),
+        ],
         level=log_level,
     )
 
 
 def main(args) -> None:
+    logger = logging.getLogger(__name__)
+
     ## Some handy day separater tag as title
     logging.info(
         "STARTING ALGO TRADING WEEKLY OTPTIONS DATED: |%s|" % datetime.datetime.now()
     )
-
-    logger = logging.getLogger(__name__)
     logger.debug("Command Line Arguments : %s" % json.dumps(vars(args), indent=2))
 
     EXPIRY_DAY = 0
