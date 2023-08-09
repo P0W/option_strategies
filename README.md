@@ -1,9 +1,19 @@
 
 
-This repository contains a Python-based automated trading strategy for implementing daily short strangle/straddle options trading on weekly contracts of NIFTY, BANKNIFTY, and FINNIFTY indices. 
-This README provides comprehensive instructions for setting up the environment and deploying the strategy effectively.
+
+Short strangles historically has given good returns, with high probablity of profit. However the risk is high if naked strangles/staddle are placed.
+
+The focus here is HIGH PROBABILITY OF PROFIT. 
+
+On my experience and some backesting on stockmock and algotest.in platforms, if we short strikes near to 1 standard deviation OTM, there's a high probability of profit.
+And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 55% from entry price on both legs.
+
+We can also place a **_live monitor_** feed to monitor MTM on both legs and sqaure off if either a provided MTM SL is hit or a provided  MTM target is achieved for the day.
 
 ---
+This repository contains a Python-based automated trading strategy for implementing daily short strangle/straddle options trading on weekly contracts of NIFTY, BANKNIFTY, and FINNIFTY indices.
+
+This README provides comprehensive instructions for setting up the environment and deploying the strategy effectively.
 
 ## Prerequisites
 
@@ -93,6 +103,20 @@ A simulation using [**algotest.in**](https://algotest.in/) is performed for peri
 
 For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
+
+## Future work
+
+* Improve Live monitoring
+  * Filter closed/cancelled orders - Check 5paisa API support it?
+  * Add indicators : VWAP, ADX and Supertrend
+  * Add UX to see MTM more intutively
+  * Move to asyncio, if possible
+  * Update pnl calculate to incorporate any abstract strategy
+* Add adapter to work with any broker's API
+* Check why 5paisa fragments/split single order with multiple lot into multiple orders with smaller lot
+* Create a DB journal for all trades placed
+* Check how live monitor can work with cloud integrations - Look for suitable resource
+  
 Thank you for using the Daily Short Strangle/Straddle strategy repository. Clarifications/suggestions are welcomed. 
 
 Happy trading!
