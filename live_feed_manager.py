@@ -41,6 +41,9 @@ class LiveFeedManager:
             except queue.Empty:
                 ## no live feed data received in the last 5 seconds
                 ## stop the monitoring session
+                self.logger.warning(
+                    "No live feed data received in the last 15 seconds. Stoping the monitoring session."
+                )
                 self.stop()
 
     def order_dequeuer(

@@ -309,18 +309,19 @@ class OrderManager:
                 self.lm.stop()
 
         try:
+            current_order_state = {
+                "strikes": {},
+                "sl_exchan_orders": sl_exchan_orders,
+                "expiry_day": expiry_day,
+                "executedOrders": executedOrders,
+                "freq": 15,  # seconds
+                "last": time.time(),
+            }
             self.logger.info(
                 "user_data: %s"
                 % json.dumps(
-                    {
-                        "strikes": {},
-                        "sl_exchan_orders": sl_exchan_orders,
-                        "expiry_day": expiry_day,
-                        "executedOrders": executedOrders,
-                        "freq": 15,  # seconds
-                        "last": time.time(),
-                    },
-                    indent=3,
+                    current_order_state,
+                    indent=2,
                 )
             )
             self.lm.monitor(
@@ -328,14 +329,7 @@ class OrderManager:
                 on_scrip_data=pnl_calculator,
                 target_profit=target,
                 max_stop_loss=-2 * target,
-                user_data={
-                    "strikes": {},
-                    "sl_exchan_orders": sl_exchan_orders,
-                    "expiry_day": expiry_day,
-                    "executedOrders": executedOrders,
-                    "freq": 15,  # seconds
-                    "last": time.time(),
-                },
+                user_data=current_order_state,
             )
         except Exception as e:
             self.logger.error(e)
