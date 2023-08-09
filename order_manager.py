@@ -178,13 +178,13 @@ class OrderManager:
                     continue
 
     def day_over(self, expiry_day: int) -> bool:
-        ## Look for 15:20 PM on non expiry
+        ## Look for 15:26 PM on non expiry
         current_time = datetime.datetime.now()
 
         if (
             current_time.weekday != expiry_day
             and current_time.hour >= 15
-            and current_time.minute >= 24
+            and current_time.minute >= 26
         ):
             return True
 
@@ -236,12 +236,27 @@ class OrderManager:
                             "rate": executed_order["OrderRate"],
                         }
                         break
+
+        # @TODO filter out closed orders
+        # scripsCodes = list(feeds.keys())
+        # tradeBookDetail = self.client.get_tradebook()["TradeBookDetail"]
+        # filteredTradeBook = list(filter(lambda x: x["ScripCode"] in scripsCodes and x["BuySell"] == "B", tradeBookDetail))
+        # for f in filteredTradeBook:
+        #     if f["ScripCode"] in feeds:
+        #         self.logger.info("Got a Buy Trade for %s %f" % (f["ScripCode"], f["Qty"]))
+        #         feeds[f["ScripCode"]]["qty"] -= f["Qty"]
+        #         if feeds[f["ScripCode"]]["qty"] == 0:
+        #             feeds.pop(f["ScripCode"])
+
         return feeds
 
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
         executedOrders = self.get_executed_orders(tag)
+        if len(executedOrders.keys()) == 0:
+            self.logger.info("No Executed Orders Found!")
+            return
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
-        self.lm = live_feed_manager.LiveFeedManagerV2(self.client, {})
+        self.lm = live_feed_manager.LiveFeedManager(self.client, {})
 
         def pnl_calculator(res: dict, target: float, mtm_loss: float, items: dict):
             try:
@@ -257,8 +272,8 @@ class OrderManager:
                 items["strikes"][code] = (avg - ltp) * qty
                 freq = items["freq"]
 
-                if (
-                    len(items["strikes"].keys()) == 2
+                if len(items["strikes"].keys()) == len(
+                    items["executedOrders"].keys()
                 ):  ## wait for both legs prices availability
                     ## calculate MTM summing the pnl of each leg
                     total_pnl = sum(items["strikes"].values())
@@ -291,6 +306,7 @@ class OrderManager:
                         self.lm.stop()
             except Exception as e:
                 self.logger.error(e)
+                self.lm.stop()
 
         try:
             self.logger.info(
@@ -309,7 +325,7 @@ class OrderManager:
             )
             self.lm.monitor(
                 list(executedOrders.keys()),
-                callback=pnl_calculator,
+                on_scrip_data=pnl_calculator,
                 target_profit=target,
                 max_stop_loss=-2 * target,
                 user_data={
