@@ -15,17 +15,17 @@ Before you begin, ensure you have the following prerequisites in place:
 
 ## Installation and Setup
 
-1. Install the `py5paisa` package using the following command:
+1. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
 
     ```sh
-   pip install py5paisa
+   pip install -r requirements.txt
     ```
 
 3. Configure API Keys:
 Follow the instructions in the [official 5paisa documentation](https://tradestation.5paisa.com/apidoc) to obtain your API keys. These keys will be used to authenticate and authorize the trading operations.
 
 4. Create a `creds.json` file:
-Create a file named `creds.json` in the root directory of your project. Populate it with the following fields obtained from the API key setup:
+Create a file named `creds.json` in the root directory of your project. Populate it with the following fields obtained from the API key setup and additional details as required for 0.6.7 version of py5paisa SDK:
 
 ```json
 {
@@ -35,6 +35,9 @@ Create a file named `creds.json` in the root directory of your project. Populate
    "PASSWORD": "YOUR_PASSWORD",
    "USER_KEY": "YOUR_USERKEY",
    "ENCRYPTION_KEY": "YOUR_ENCRYPTION_KEY"
+   "email": "YOUR_LOGIN_EMAIL",
+   "passwd": "YOUR_LOGIN_PASSWORD",
+   "dob": "YOUR_DOB"
 }
 ```
 
