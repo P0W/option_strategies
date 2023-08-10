@@ -1,6 +1,7 @@
 ## Author : Prashant Srivastava
 ## Last Modified Date  : Dec 27th, 2022
 
+from pathlib import Path
 from py5paisa import FivePaisaClient
 import re
 import datetime
@@ -37,12 +38,18 @@ def login_from_json(cred: dict):
 
 def configure_logger(log_level):
     ## Setup logging
+    ## create a directory logs if it does not exist
+    Path.mkdir(Path("logs"), exist_ok=True)
+    ## Create a filename suffixed with current date DDMMYY format with current date inside logs directory
+    log_file = Path("logs") / (
+        "daily_short_%s.log" % datetime.datetime.now().strftime("%Y%m%d")
+    )
     logging.basicConfig(
         format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
         datefmt="%A,%d/%m/%Y|%H:%M:%S",
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler("daily_logs_new.txt"),
+            logging.FileHandler(log_file),
         ],
         level=log_level,
     )

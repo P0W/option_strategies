@@ -1,10 +1,9 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Aug 7th, 2023
+## Last Modified Date  : Aug 10th, 2023
 
 import logging
 import time
 import json
-import threading
 import datetime
 import live_feed_manager
 
@@ -147,35 +146,81 @@ class OrderManager:
         ]
         return slExchOrderIDs
 
-    def squareoff(self, tag: str) -> None:
-        id = []
-        r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
-            "OrdStatusResLst"
-        ]
-        for order in r:
+    def reverse_order(self, buysell: str) -> str:
+        if buysell == "B":
+            return "S"
+        if buysell == "S":
+            return "B"
+
+    def intraday(self, intra):
+        if intra == "I":
+            return True
+        else:
+            return False
+
+    def square_off_price(self, ltp: float, buysell: str) -> float:
+        ## To account for slippages
+        ## We want the order to be placed at 0.5% higher/(lower for sello) than LTP, to increase the chances of execution
+        if buysell == "B":
+            return round(ltp * 1.005, 2)
+        if buysell == "S":
+            return round(ltp * 0.995, 2)
+
+    def squareoff(self, tag: str, strikes: dict) -> None:
+        exchange_order_list = []
+        order_status = self.client.fetch_order_status(
+            [{"Exch": "N", "RemoteOrderID": tag}]
+        )["OrdStatusResLst"]
+        for order in order_status:
             eoid = order["ExchOrderID"]
             if eoid != "":
-                id.append(eoid)
-        trdbook = self.client.get_tradebook()["TradeBookDetail"]
-        for eoid in id:
-            for trade in trdbook:
+                exchange_order_list.append(eoid)
+        tradeBook = self.client.get_tradebook()["TradeBookDetail"]
+        for eoid in exchange_order_list:
+            for trade in tradeBook:
                 if eoid == int(trade["ExchOrderID"]):
-                    buysell_type = "B"
+                    buysell_type = self.reverse_order(trade["BuySell"])
                     scrip = trade["ScripCode"]
                     qty = trade["Qty"]
                     segment = trade["ExchType"]
-                    order_status = self.client.place_order(
+                    ltp = self.square_off_price(
+                        ltp=strikes[scrip], buysell=buysell_type
+                    )
+                    isIntraday = trade["IsIntraday"]
+                    scripName = trade["ScripName"]
+                    self.client.place_order(
                         OrderType=buysell_type,
                         Exchange="N",
                         ExchangeType=segment,
                         ScripCode=scrip,
                         Qty=qty,
-                        Price=0,
-                        IsIntraday=True,
-                        remote_order_id=tag,
+                        Price=ltp,
+                        IsIntraday=self.intraday(isIntraday),
+                        remote_order_id="sq" + tag,
                     )
-                else:
-                    continue
+                    self.logger.info(
+                        "Square off: ScripCode:%d | ScripName:%s | Price:%.2f | Qty:%d | Tag:%s"
+                        % (scrip, scripName, ltp, qty, "sq" + tag)
+                    )
+
+        ## Wait till all orders are squared off
+        keepPolling = True
+        while keepPolling:
+            order_book = self.client.order_book()
+            order_status = {
+                order["ScripCode"]: order["OrderStatus"]
+                for order in order_book
+                if order["RemoteOrderID"] == "sq" + tag
+            }
+            if any([status == "Placed" for status in order_status.values()]):
+                keepPolling = True
+                self.logger.info(
+                    "Waiting for square off orders to be executed/rejected"
+                )
+                time.sleep(2)
+            else:
+                keepPolling = False
+                self.logger.info("All orders executed or rejected")
 
     def day_over(self, expiry_day: int) -> bool:
         ## Look for 15:26 PM on non expiry
@@ -197,26 +242,6 @@ class OrderManager:
             ## The contract will expire worthless or stop loss must have triggered
             return True
         return False
-
-    @DeprecationWarning
-    def monitor(self, target: float, tag: str, expiry_day: int) -> None:
-        def poll():
-            while not self.day_over(expiry_day):
-                mtom = self.pnl()
-                if mtom >= target:
-                    ## TARGET ACCHEIVED
-                    ## Sqaure off both legs
-                    self.squareoff(tag=tag)
-                    self.cancel_pendings(tag=tag)
-                    break
-                self.logger.debug("MTM = %.2f" % mtom)
-                time.sleep(5)
-            self.logger.info("Not Monitoring Day Over!")
-
-        th = threading.Thread(target=poll, args=())
-        th.start()
-        th.join()
-        return
 
     def get_executed_orders(self, tag: str) -> dict:
         orderbook = self.client.order_book()
@@ -281,25 +306,39 @@ class OrderManager:
                     if time.time() - items["last"] > freq:
                         self.logger.info(
                             "Current MTM: %f %s"
-                            % (total_pnl, json.dumps(items["strikes"], indent=3))
+                            % (total_pnl, json.dumps(items["strikes"], indent=2))
                         )
                         items["last"] = time.time()
                     if total_pnl >= target:
                         # TARGET ACHEIVED
-                        self.logger.info("Target Achieved: %f" % total_pnl)
+                        self.logger.info(
+                            "Current MTM: %f %s"
+                            % (total_pnl, json.dumps(items["strikes"], indent=2))
+                        )
+                        self.logger.info(
+                            "Target Achieved: %f | Profit Threshold %f "
+                            % (total_pnl, target)
+                        )
                         # Sqaure off both legs
                         self.logger.info("Squaring off both legs")
-                        self.squareoff(tag=tag)
+                        self.squareoff(tag=tag, strikes=items["strikes"])
                         self.logger.info("Cancelling pending stop loss orders")
                         self.client.cancel_bulk_order(items["sl_exchan_orders"])
                         self.logger.info("Stopping live feed")
                         self.lm.stop()
                     elif total_pnl <= mtm_loss:
                         # STOP LOSS HIT
-                        self.logger.info("Stop Loss Hit: %f" % total_pnl)
+                        self.logger.info(
+                            "Current MTM: %f %s"
+                            % (total_pnl, json.dumps(items["strikes"], indent=2))
+                        )
+                        self.logger.info(
+                            "Stop Loss Hit: %f | Loss Threshold %f"
+                            % (total_pnl, mtm_loss)
+                        )
                         # Sqaure off both legs
                         self.logger.info("Squaring off both legs")
-                        self.squareoff(tag=tag)
+                        self.squareoff(tag=tag, strikes=items["strikes"])
                         self.logger.info("Cancelling pending target orders")
                         self.client.cancel_bulk_order(items["sl_exchan_orders"])
                         self.logger.info("Stopping live feed")

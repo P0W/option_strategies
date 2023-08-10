@@ -202,6 +202,10 @@ class LiveFeedManager:
         ## Default implementation - simply log
         self.logger.info(f"Order cancelled: {message}")
 
+    def on_sl_order(self, message: dict):
+        ## Default implementation - simply log
+        self.logger.info(f"Stop loss order: {message}")
+
     def on_order_update(self, message: dict, subscription_list: list):
         if message["Status"] == "Fully Executed":
             scrip_codes = [item["ScripCode"] for item in subscription_list]
@@ -227,6 +231,8 @@ class LiveFeedManager:
                     ]
         elif message["Status"] == "Cancelled":
             self.on_cancel_order(message)
+        elif message["Status"] == "SL Triggered":
+            self.on_sl_order(message)
         else:
             self.logger.info(f"Order update: {message}")
 
