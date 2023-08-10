@@ -283,7 +283,7 @@ class OrderManager:
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
         self.lm = live_feed_manager.LiveFeedManager(self.client, {})
 
-        def pnl_calculator(res: dict, target: float, mtm_loss: float, items: dict):
+        def pnl_calculator(res: dict, items: dict):
             try:
                 if self.day_over(items["expiry_day"]):
                     self.logger.info("Day Over!")
@@ -292,8 +292,12 @@ class OrderManager:
 
                 code = res["code"]
                 ltp = res["c"]
+                ## Get user_data from items
                 qty = items["executedOrders"][code]["qty"]
                 avg = items["executedOrders"][code]["rate"]
+                mtm_target = items["mtm_target"]
+                mtm_loss = items["mtm_loss"]
+                ## Calculate MTM on each leg
                 items["strikes"][code] = (avg - ltp) * qty
                 freq = items["freq"]
 
@@ -309,7 +313,7 @@ class OrderManager:
                             % (total_pnl, json.dumps(items["strikes"], indent=2))
                         )
                         items["last"] = time.time()
-                    if total_pnl >= target:
+                    if total_pnl >= mtm_target:
                         # TARGET ACHEIVED
                         self.logger.info(
                             "Current MTM: %f %s"
@@ -317,7 +321,7 @@ class OrderManager:
                         )
                         self.logger.info(
                             "Target Achieved: %f | Profit Threshold %f "
-                            % (total_pnl, target)
+                            % (total_pnl, mtm_target)
                         )
                         # Sqaure off both legs
                         self.logger.info("Squaring off both legs")
@@ -355,6 +359,8 @@ class OrderManager:
                 "executedOrders": executedOrders,
                 "freq": 15,  # seconds
                 "last": time.time(),
+                "mtm_target": target,
+                "mtm_loss": -2 * target,
             }
             self.logger.info(
                 "user_data: %s"
@@ -364,10 +370,8 @@ class OrderManager:
                 )
             )
             self.lm.monitor(
-                list(executedOrders.keys()),
+                scrip_codes=list(executedOrders.keys()),
                 on_scrip_data=pnl_calculator,
-                target_profit=target,
-                max_stop_loss=-2 * target,
                 user_data=current_order_state,
             )
         except Exception as e:

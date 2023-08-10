@@ -26,9 +26,7 @@ class LiveFeedManager:
 
     def callback_dequeuer(
         self,
-        callback: Callable[[dict, float, float, dict], None],
-        target_profit: float,
-        max_stop_loss: float,
+        callback: Callable[[dict, dict], None],
         user_data: dict,
     ):
         while not self.shutdown_flag.is_set():
@@ -36,7 +34,7 @@ class LiveFeedManager:
                 callback_data = self.callback_queue.get(
                     timeout=15
                 )  ## wait for 60 seconds for new data
-                callback(callback_data, target_profit, max_stop_loss, user_data)
+                callback(callback_data, user_data)
                 self.callback_queue.task_done()
             except queue.Empty:
                 ## no live feed data received in the last 5 seconds
@@ -61,15 +59,11 @@ class LiveFeedManager:
     def monitor(
         self,
         scrip_codes: List[int],
-        on_scrip_data: Callable[[dict, float, float, dict], None],
-        target_profit: float,
-        max_stop_loss: float,
-        user_data: dict,
+        on_scrip_data: Callable[[dict, dict], None],
         on_order_update: Callable[[dict, list], None] = None,
+        user_data: dict = {},
     ) -> None:
         self.logger.info("Starting monitoring session for scrips: %s", scrip_codes)
-        self.logger.info("Target Profit: %f", target_profit)
-        self.logger.info("Max Stop Loss: %f", max_stop_loss)
         with self.monitoring_lock:
             if self.monitoring_active:
                 self.logger.warning(
@@ -87,7 +81,6 @@ class LiveFeedManager:
 
             def process_msg(msg: dict):
                 if "Status" in msg:
-                    self.logger.info("Received order message: %s", msg)
                     ## Example :{"ReqType":"P","ClientCode":"58194614","Exch":"N","ExchType":"D","ScripCode":47879,"Symbol":"NIFTY 10 Aug 2023 CE 19650.00","Series":"","BrokerOrderID":924914129,"ExchOrderID":"1000000021635748","ExchOrderTime":"2023-08-09 10:14:01","BuySell":"B","Qty":50,"Price":13.25,"ReqStatus":0,"Status":"Placed","OrderRequestorCode":"58194614","AtMarket":"N","Product":"I","WithSL":"N","SLTriggerRate":0,"DisclosedQty":0,"PendingQty":50,"TradedQty":0,"RemoteOrderId":"581946142023080910140176"}
                     self.order_queue.put(msg)
                 elif "LastRate" in msg:
@@ -142,7 +135,7 @@ class LiveFeedManager:
             # Start the callback_dequeuer thread
             self.scrip_dequeuer_thread = threading.Thread(
                 target=self.callback_dequeuer,
-                args=(on_scrip_data, target_profit, max_stop_loss, user_data),
+                args=(on_scrip_data, user_data),
             )
             self.logger.info("Starting scrip data callback thread.")
             self.scrip_dequeuer_thread.start()
@@ -250,17 +243,20 @@ if __name__ == "__main__":
     straddle_premium = staddle_strikes["ce_ltp"] + staddle_strikes["pe_ltp"]
     lm = LiveFeedManager(client, {})
 
-    def straddle_calculator(res: dict, target: float, mtm_loss: float, items: dict):
+    def straddle_calculator(res: dict, user_data: dict):
         code = res["code"]
         ltp = res["c"]
 
-        items[code] = (ltp) * 1
-        if len(items.keys()) == 2:  ## wait for both legs prices availability
+        target = user_data["target"]
+        mtm_loss = user_data["mtm_loss"]
+
+        user_data[code] = (ltp) * 1
+        if len(user_data.keys()) == 2:  ## wait for both legs prices availability
             ## calculate MTM summing the pnl of each leg
-            total_pnl = sum(items.values())
+            total_pnl = sum(user_data.values())
             logging.info(
                 "Total Straddle Preminum: %f %s"
-                % (total_pnl, json.dumps(items, indent=3))
+                % (total_pnl, json.dumps(user_data, indent=3))
             )
             if total_pnl >= target:
                 # TARGET ACHEIVED
@@ -282,7 +278,8 @@ if __name__ == "__main__":
     lm.monitor(
         scrip_codes=[staddle_strikes["ce_code"], staddle_strikes["pe_code"]],
         on_scrip_data=straddle_calculator,
-        target_profit=straddle_premium * 1.01,
-        max_stop_loss=straddle_premium * 0.99,
-        user_data={},
+        user_data={
+            "target": straddle_premium * 1.01,
+            "mtm_loss": straddle_premium * 0.99,
+        },
     )
