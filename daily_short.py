@@ -13,17 +13,16 @@ import strikes_manager
 import order_manager
 import utils
 import sys
+import pyotp
 
 
 def login(cred_file: str):
     with open(cred_file) as cred_fh:
         cred = json.load(cred_fh)
 
-    client = FivePaisaClient(
-        email=cred["email"], passwd=cred["passwd"], dob=cred["dob"], cred=cred
-    )
-    client.login()
-
+    client = FivePaisaClient(cred)
+    totp = pyotp.TOTP(cred["totp_secret"])
+    client.get_totp_session(cred["clientcode"], totp.now(), cred["pin"])
     return client
 
 
