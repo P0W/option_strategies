@@ -208,7 +208,7 @@ class OrderManager:
                         Price=%f,
                         IsIntraday=%s,
                         StopLossPrice=0.0,
-                        remote_order_id=%s,
+                        RemoteOrderID=%s,
                     )"""
                         % (
                             buysell_type,
@@ -229,14 +229,15 @@ class OrderManager:
                         Price=ltp,
                         StopLossPrice=0.0,
                         IsIntraday=self.intraday(isIntraday),
-                        remote_order_id="sq" + tag,
+                        RemoteOrderID="sq" + tag,
                     )
                     if order_status["Message"] == "Success":
                         self.logger.info("Square off order Placed for %d" % scrip)
                         placed_sq_off = placed_sq_off + 1
 
         ## Wait till all orders are squared off
-        keepPolling = placed_sq_off == len(exchange_order_list)
+        keepPolling = placed_sq_off > 0
+        retries = 0
         while keepPolling:
             order_book = self.client.order_book()
             if order_book:
@@ -246,7 +247,12 @@ class OrderManager:
                     if order["RemoteOrderID"] == "sq" + tag
                 }
                 if order_status:
-                    if any([status == "Placed" for status in order_status.values()]):
+                    if any(
+                        [
+                            status == "Placed" or status == "Partially Executed"
+                            for status in order_status.values()
+                        ]
+                    ):
                         keepPolling = True
                         self.logger.info(
                             "Waiting for square off orders to be executed/rejected"
@@ -262,8 +268,12 @@ class OrderManager:
                         % ("sq" + tag, json.dumps(order_book, indent=2))
                     )
             else:
-                keepPolling = False
-                self.logger.info("order_book empty")
+                ## At times 5paisa API returns empty order_book
+                retries = retries + 1
+                ## if 3 retries are done, then stop polling
+                if retries > 3:
+                    keepPolling = False
+                    self.logger.info("order_book empty")
 
     def day_over(self, expiry_day: int) -> bool:
         ## Look for 15:26 PM on non expiry
