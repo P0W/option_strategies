@@ -45,12 +45,15 @@ class LiveFeedManager:
                 self.stop()
 
     def order_dequeuer(
-        self, callback: Callable[[dict, list], None], subscription_list: list
+        self,
+        callback: Callable[[dict, list, dict], None],
+        subscription_list: list,
+        user_data: dict = {},
     ):
         while not self.shutdown_flag.is_set():
             try:
                 order_data = self.order_queue.get(timeout=1)
-                callback(order_data, subscription_list)
+                callback(order_data, subscription_list, user_data)
                 self.order_queue.task_done()
             except queue.Empty:
                 ## no order data received in the last 5 seconds
@@ -60,7 +63,7 @@ class LiveFeedManager:
         self,
         scrip_codes: List[int],
         on_scrip_data: Callable[[dict, dict], None],
-        on_order_update: Callable[[dict, list], None] = None,
+        on_order_update: Callable[[dict, list, dict], None] = None,
         user_data: dict = {},
     ) -> None:
         self.logger.info("Starting monitoring session for scrips: %s", scrip_codes)
@@ -149,9 +152,10 @@ class LiveFeedManager:
                 callback_args = (
                     lambda x, y: self.on_order_update(x, y),
                     self.req_list,
+                    user_data,
                 )
             else:
-                callback_args = (on_order_update, self.req_list)
+                callback_args = (on_order_update, self.req_list, user_data)
             self.order_dequeuer_thread = threading.Thread(
                 target=self.order_dequeuer, args=callback_args
             )
@@ -199,7 +203,11 @@ class LiveFeedManager:
         ## Default implementation - simply log
         self.logger.info(f"Stop loss order: {message}")
 
-    def on_order_update(self, message: dict, subscription_list: list):
+    def on_order_update(
+        self, message: dict, subscription_list: list, user_data: dict = {}
+    ):
+        if not "order_update" in user_data:
+            user_data["order_update"] = []
         if message["Status"] == "Fully Executed":
             scrip_codes = [item["ScripCode"] for item in subscription_list]
             if message["ScripCode"] in scrip_codes:
@@ -222,6 +230,7 @@ class LiveFeedManager:
                         for item in subscription_list
                         if item["ScripCode"] != message["ScripCode"]
                     ]
+                    user_data["order_update"].append(message["ScripCode"])
         elif message["Status"] == "Cancelled":
             self.on_cancel_order(message)
         elif message["Status"] == "SL Triggered":
