@@ -172,13 +172,23 @@ if __name__ == "__main__":
     client_manager.configure_logger("DEBUG")
     ## Setup client
     client = client_manager.login("..\creds.json")
+
+    ## Set up Config
+    config = {
+        "CLOSEST_PREMINUM": 8.0,
+        "SL_FACTOR": 1.55,
+        "QTY": 150,  ## 3 lot of NIFTY
+        "INDEX_OPTION": "NIFTY",
+    }
     ## Create live feed and start the strategy monitor
-    live_feed = live_feed_manager.LiveFeedManager(client, {})
+    live_feed = live_feed_manager.LiveFeedManager(client, config)
     ## Create order manager
-    om = order_manager.OrderManager(client, {})
+    om = order_manager.OrderManager(client, config)
     ## Create strikes manager
-    sm = strikes_manager.StrikesManager(client, {})
-    strikes = sm.strangle_strikes(closest_price_thresh=9.0, index="NIFTY")
+    sm = strikes_manager.StrikesManager(client, config)
+    strikes = sm.strangle_strikes(
+        closest_price_thresh=config["CLOSEST_PREMINUM"], index="NIFTY"
+    )
     strategy = StrangleStrategy(
         strikes=strikes, feed_manager=live_feed, order_manager=om, strikes_manager=sm
     )
