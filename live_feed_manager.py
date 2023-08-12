@@ -1,12 +1,10 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Aug 7th, 2023
 
 import logging
 import json
 import queue
 import threading
 from typing import List, Callable
-
 
 class LiveFeedManager:
     def __init__(self, client, config: dict):
@@ -27,7 +25,7 @@ class LiveFeedManager:
     def callback_dequeuer(
         self,
         callback: Callable[[dict, dict], None],
-        user_data: dict,
+        user_data: dict = {},
     ):
         while not self.shutdown_flag.is_set():
             try:
@@ -66,18 +64,13 @@ class LiveFeedManager:
         on_order_update: Callable[[dict, list, dict], None] = None,
         user_data: dict = {},
     ) -> None:
-        self.logger.info("Starting monitoring session for scrips: %s", scrip_codes)
         with self.monitoring_lock:
+            self.logger.info(f"Starting monitoring session for scrips: {scrip_codes}")
             if self.monitoring_active:
                 self.logger.warning(
                     "Monitoring is already active. Not starting a new session."
                 )
                 return
-
-            self.req_list = [
-                {"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes
-            ]
-            req_data = self.client.Request_Feed("mf", "s", self.req_list)
 
             def on_error(ws, err):
                 self.logger.error(f"WebSocket error: {err}")
@@ -122,7 +115,10 @@ class LiveFeedManager:
                 except Exception as e:
                     self.logger.error(f"Error processing message: {e}")
 
-            self.logger.info("Connecting to live feed.")
+            self.req_list.extend(
+                [{"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes]
+            )
+            req_data = self.client.Request_Feed("mf", "s", self.req_list)
             self.client.connect(req_data)
             self.client.error_data(on_error)
 
@@ -144,18 +140,14 @@ class LiveFeedManager:
             self.scrip_dequeuer_thread.start()
 
             # Start the order_dequeuer thread
-            if on_order_update is None:
-                self.logger.info(
-                    "Order update callback is not provided. Using default."
-                )
+            if on_order_update:
+                self.on_order_update = on_order_update
                 ## use lambda to use on_order callback as free function
-                callback_args = (
-                    lambda x, y: self.on_order_update(x, y),
-                    self.req_list,
-                    user_data,
-                )
-            else:
-                callback_args = (on_order_update, self.req_list, user_data)
+            callback_args = (
+                lambda x, y: self._on_order_update(x, y),
+                self.req_list,
+                user_data,
+            )
             self.order_dequeuer_thread = threading.Thread(
                 target=self.order_dequeuer, args=callback_args
             )
@@ -206,89 +198,56 @@ class LiveFeedManager:
     def on_order_update(
         self, message: dict, subscription_list: list, user_data: dict = {}
     ):
+        pass
+
+    def _on_order_update(
+        self, message: dict, subscription_list: list, user_data: dict = {}
+    ):
         if not "order_update" in user_data:
             user_data["order_update"] = []
         if message["Status"] == "Fully Executed":
             scrip_codes = [item["ScripCode"] for item in subscription_list]
             if message["ScripCode"] in scrip_codes:
-                unsubscribe_list = [
-                    {
-                        "Exch": "N",
-                        "ExchType": "D",
-                        "ScripCode": message["ScripCode"],
-                    }
-                ]
-                logging.info(f"Unsubscribing from scrip: {message['Symbol']}")
-                req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
-                ## bug in 5paisa websocket send_data implementation, use the object directly
-                if self.client.ws is not None:
-                    self.client.ws.send(json.dumps(req_data))
-                    unsubscribe_list = []
-                    ## update the original subscribe_list
-                    subscription_list = [
-                        item
-                        for item in subscription_list
-                        if item["ScripCode"] != message["ScripCode"]
-                    ]
+                if self.unsubscribe([message["ScripCode"]]):
                     user_data["order_update"].append(message["ScripCode"])
+
         elif message["Status"] == "Cancelled":
             self.on_cancel_order(message)
         elif message["Status"] == "SL Triggered":
             self.on_sl_order(message)
         else:
             self.logger.info(f"Order update: {message}")
+        self.on_order_update(message, subscription_list, user_data)
 
-
-## Example usage
-if __name__ == "__main__":
-    import daily_short
-    import strikes_manager
-
-    client = daily_short.login("creds.json")
-    daily_short.configure_logger("DEBUG")
-    sm = strikes_manager.StrikesManager(client, {})
-    staddle_strikes = sm.straddle_strikes("FINNIFTY")
-
-    straddle_premium = staddle_strikes["ce_ltp"] + staddle_strikes["pe_ltp"]
-    lm = LiveFeedManager(client, {})
-
-    def straddle_calculator(res: dict, user_data: dict):
-        code = res["code"]
-        ltp = res["c"]
-
-        target = user_data["target"]
-        mtm_loss = user_data["mtm_loss"]
-
-        user_data[code] = (ltp) * 1
-        if len(user_data.keys()) == 2:  ## wait for both legs prices availability
-            ## calculate MTM summing the pnl of each leg
-            total_pnl = sum(user_data.values())
-            logging.info(
-                "Total Straddle Preminum: %f %s"
-                % (total_pnl, json.dumps(user_data, indent=3))
+    @DeprecationWarning ## Doesn't work - Don't use
+    def subscribe(self, scrip_codes: List[int]) -> bool:
+        with self.monitoring_lock:
+            self.logger.info(f"Subscribing to scrips: {scrip_codes}")
+            self.req_list.extend(
+                [{"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes]
             )
-            if total_pnl >= target:
-                # TARGET ACHEIVED
-                logging.info("Target Achieved: %f" % total_pnl)
-                # Sqaure off both legs
-                logging.info("Squaring off both legs")
-                logging.info("Cancelling pending stop loss orders")
-                logging.info("Stopping live feed")
-                lm.stop()
-            elif total_pnl <= mtm_loss:
-                # STOP LOSS HIT
-                logging.info("Stop Loss Hit: %f" % total_pnl)
-                # Sqaure off both legs
-                logging.info("Squaring off both legs")
-                logging.info("Cancelling pending target orders")
-                logging.info("Stopping live feed")
-                lm.stop()
+            req_data = self.client.Request_Feed("mf", "s", self.req_list)
+            ## bug in 5paisa websocket send_data implementation, use the object directly
+            if self.client.ws is not None:
+                self.client.ws.send(json.dumps(req_data))
+                return True
+        return False
 
-    lm.monitor(
-        scrip_codes=[staddle_strikes["ce_code"], staddle_strikes["pe_code"]],
-        on_scrip_data=straddle_calculator,
-        user_data={
-            "target": straddle_premium * 1.01,
-            "mtm_loss": straddle_premium * 0.99,
-        },
-    )
+    def unsubscribe(self, scrip_codes: List[int]) -> bool:
+        with self.monitoring_lock:
+            unsubscribe_list = [
+                {"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes
+            ]
+            req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
+            ## bug in 5paisa websocket send_data implementation, use the object directly
+            if self.client.ws is not None:
+                self.client.ws.send(json.dumps(req_data))
+                ## update the original subscribe_list
+                self.req_list = [
+                    item
+                    for item in self.req_list
+                    if item["ScripCode"] not in scrip_codes
+                ]
+                self.logger.info(f"Unsubscribed from scrips: {scrip_codes}")
+                return True
+        return False
