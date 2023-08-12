@@ -4,6 +4,6 @@
 
 azure-functions
 requests
-py5paisa==0.6.7
+py5paisa
 black
 pyotp
