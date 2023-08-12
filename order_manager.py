@@ -1,12 +1,10 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Aug 10th, 2023
 
 import logging
 import time
 import json
 import datetime
 import live_feed_manager
-
 
 class OrderManager:
     def __init__(self, client, config) -> None:
@@ -328,6 +326,11 @@ class OrderManager:
 
         return feeds
 
+    def squareoffSL(self, tag: str) -> None:
+        self.logger.info("Cancelling pending stop loss orders")
+        sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
+        self.client.cancel_bulk_order(sl_exchan_orders)
+
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
         executedOrders = self.get_executed_orders(tag)
         if len(executedOrders.keys()) == 0:
@@ -409,9 +412,6 @@ class OrderManager:
                 self.lm.stop()
 
         def order_update(message: dict, subsList: dict, user_data: dict):
-            ## call LiveManager's default order_update
-            self.lm.on_order_update(message, subsList, user_data)
-            ## check if it was from our subscription list
             unsubscribeList = user_data["order_update"]
             if len(unsubscribeList) == 1 and "mtm_target" in user_data:
                 ## reduce mtm_target by 50%
@@ -445,3 +445,15 @@ class OrderManager:
             )
         except Exception as e:
             self.logger.error(e)
+
+    def modify_stop_loss_order(self, tag: str, scrip_code: int, price: float):
+        order_status = self.client.fetch_order_status(
+            [{"Exch": "N", "RemoteOrderID": "sl" + tag}]
+        )["OrdStatusResLst"]
+        for order in order_status:
+            eoid = order["ExchOrderID"]
+            if eoid != "" and scrip_code == order["ScripCode"]:
+                id.append(eoid)
+                self.client.modify_order(
+                    ExchOrderID=eoid, Price=price + 0.5, StopLossPrice=price
+                )
