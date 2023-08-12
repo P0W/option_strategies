@@ -11,7 +11,6 @@ parent_directory = os.path.dirname(current_directory)
 sys.path.append(parent_directory)
 
 import base_strategy
-import logging
 import live_feed_manager
 import order_manager
 import strikes_manager
@@ -38,8 +37,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.strikes_manager = strikes_manager
         self.order_manager = order_manager
         self.feed_manager = feed_manager
-        self.logger = logging.getLogger(__name__)
-        self.logger.info("Strangle Strategy Initiated")
+
         self.target_profit = 1500.0
         self.sl_target = -1000.0
         self.strikes = strikes
@@ -48,6 +46,8 @@ class StrangleStrategy(base_strategy.BaseStrategy):
             "nifty_index": {"low": -1.0, "high": -1.0},
             "start_time": time.time(),
         }
+
+        self.logger.info("Strangle Strategy Initiated")
 
     ## @override
     ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
@@ -86,6 +86,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                         scrip_codes=[StrangleStrategy.NIFTY_INDEX]
                     )
                     ## we are ready to take the trade
+                    self.logger.info("Ready to take the trade")
                     return True
         return False
 
@@ -154,6 +155,17 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 price=all_executed_orders[other_scrip_code]["rate"],
             )
 
+    def start(self):
+        self.feed_manager.monitor(
+            scrip_codes=[
+                StrangleStrategy.NIFTY_INDEX,
+                self.strikes["ce_code"],
+                self.strikes["pe_code"],
+            ],
+            on_scrip_data=self.run,
+            on_order_update=self.order_placed,
+        )
+
 
 if __name__ == "__main__":
     ## Setup logging
@@ -161,21 +173,13 @@ if __name__ == "__main__":
     ## Setup client
     client = client_manager.login("..\creds.json")
     ## Create live feed and start the strategy monitor
-    lm = live_feed_manager.LiveFeedManager(client, {})
+    live_feed = live_feed_manager.LiveFeedManager(client, {})
     ## Create order manager
     om = order_manager.OrderManager(client, {})
     ## Create strikes manager
     sm = strikes_manager.StrikesManager(client, {})
     strikes = sm.strangle_strikes(closest_price_thresh=9.0, index="NIFTY")
     strategy = StrangleStrategy(
-        strikes=strikes, feed_manager=lm, order_manager=om, strikes_manager=sm
+        strikes=strikes, feed_manager=live_feed, order_manager=om, strikes_manager=sm
     )
-    lm.monitor(
-        scrip_codes=[
-            StrangleStrategy.NIFTY_INDEX,
-            strikes["ce_code"],
-            strikes["pe_code"],
-        ],
-        on_scrip_data=strategy.run,
-        on_order_update=strategy.order_placed,
-    )
+    strategy.start()

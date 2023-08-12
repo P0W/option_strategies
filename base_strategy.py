@@ -3,7 +3,6 @@
 import logging
 import time
 
-
 class BaseStrategy:
     def __init__(self, name: str, scrip_codes: list):
         self.scrip_codes = scrip_codes
@@ -57,4 +56,7 @@ class BaseStrategy:
             }
 
     def stop(self):
+        raise NotImplementedError
+    
+    def start(self):
         raise NotImplementedError
