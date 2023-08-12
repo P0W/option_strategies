@@ -3,6 +3,7 @@
 import logging
 import time
 
+
 class BaseStrategy:
     def __init__(self, name: str, scrip_codes: list):
         self.scrip_codes = scrip_codes

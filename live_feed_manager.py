@@ -6,6 +6,7 @@ import queue
 import threading
 from typing import List, Callable
 
+
 class LiveFeedManager:
     def __init__(self, client, config: dict):
         self.client = client
@@ -219,7 +220,7 @@ class LiveFeedManager:
             self.logger.info(f"Order update: {message}")
         self.on_order_update(message, subscription_list, user_data)
 
-    @DeprecationWarning ## Doesn't work - Don't use
+    @DeprecationWarning  ## Doesn't work - Don't use
     def subscribe(self, scrip_codes: List[int]) -> bool:
         with self.monitoring_lock:
             self.logger.info(f"Subscribing to scrips: {scrip_codes}")

@@ -1,8 +1,5 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Dec 27th, 2022
 
-from pathlib import Path
-from py5paisa import FivePaisaClient
 import re
 import datetime
 import logging
@@ -12,46 +9,7 @@ import argparse
 import strikes_manager
 import order_manager
 import utils
-import sys
-import pyotp
-
-
-def login(cred_file: str):
-    with open(cred_file) as cred_fh:
-        cred = json.load(cred_fh)
-
-    client = FivePaisaClient(cred)
-    totp = pyotp.TOTP(cred["totp_secret"])
-    client.get_totp_session(cred["clientcode"], totp.now(), cred["pin"])
-    return client
-
-
-def login_from_json(cred: dict):
-    client = FivePaisaClient(
-        email=cred["email"], passwd=cred["passwd"], dob=cred["dob"], cred=cred
-    )
-    client.login()
-
-    return client
-
-
-def configure_logger(log_level):
-    ## Setup logging
-    ## create a directory logs if it does not exist
-    Path.mkdir(Path("logs"), exist_ok=True)
-    ## Create a filename suffixed with current date DDMMYY format with current date inside logs directory
-    log_file = Path("logs") / (
-        "daily_short_%s.log" % datetime.datetime.now().strftime("%Y%m%d")
-    )
-    logging.basicConfig(
-        format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
-        datefmt="%A,%d/%m/%Y|%H:%M:%S",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler(log_file),
-        ],
-        level=log_level,
-    )
+import client_manager
 
 
 def main(args) -> None:
@@ -85,9 +43,9 @@ def main(args) -> None:
     monitor_tag = None
 
     if type(args.creds) is dict:
-        client = login_from_json(args.creds)
+        client = client_manager.login_from_json(args.creds)
     else:
-        client = login(cred_file=args.creds)
+        client = client_manager.login(cred_file=args.creds)
     sm = strikes_manager.StrikesManager(client=client, config=config)
     om = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0:
@@ -208,5 +166,5 @@ if __name__ == "__main__":
     parser.add_argument("--strangle", action="store_true", help="Place Strangle")
     parser.add_argument("--straddle", action="store_true", help="Place Straddle")
     args = parser.parse_args()
-    configure_logger(args.log_level)
+    client_manager.configure_logger(args.log_level)
     main(args)

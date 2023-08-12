@@ -18,9 +18,12 @@ import strikes_manager
 import client_manager
 
 
+## The Strangle Strategy. Refer entry and exit methods for the strategy
 class StrangleStrategy(base_strategy.BaseStrategy):
+    ## NIFTY_INDEX is the scrip code for NIFTY index
     NIFTY_INDEX = 999920000
 
+    ## Constructor
     def __init__(
         self,
         strikes: dict,
@@ -42,13 +45,13 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.strikes = strikes
 
         self.user_data = {
-            "nifty_index": {"low": 0.0, "high": 0.0},
+            "nifty_index": {"low": -1.0, "high": -1.0},
             "start_time": time.time(),
         }
 
-        ## Subscribe to the nifty index feed
-        ## self.feed_manager.subscribe(scrip_codes=[StrangleStrategy.NIFTY_INDEX])
-
+    ## @override
+    ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
+    ## If yes, exit the trade
     def exit(self, ohlcvt: dict) -> bool:
         if self.is_in_position():
             pnl = self.get_pnl()
@@ -56,18 +59,22 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 return True
         return False
 
+    ## @override
+    ## Entry Condtion: Wait for 15 minutes after the start of the strategy
+    ## Check if the close of nifty index is between the high and low of the nifty index
+    ## If yes, unsubscribe from the nifty index feed and take the trade
     def entry(self, ohlcvt: dict) -> bool:
         if self.is_in_position():  ## Already in a trade
             return False
         if StrangleStrategy.NIFTY_INDEX == ohlcvt["code"]:
-            self.user_data["nifty_index"]["high"] = max(
-                self.user_data["nifty_index"]["high"], ohlcvt["c"]
-            )
-            self.user_data["nifty_index"]["low"] = min(
-                self.user_data["nifty_index"]["low"], ohlcvt["l"]
-            )
-            if time.time() - self.user_data["start_time"] > 300:
-                ## check "c" of nifty index is between high and low
+            if self.user_data["nifty_index"]["low"] == -1.0:
+                self.user_data["nifty_index"]["low"] = ohlcvt["l"]
+            if self.user_data["nifty_index"]["high"] == -1.0:
+                self.user_data["nifty_index"]["high"] = ohlcvt["h"]
+            if (
+                time.time() - self.user_data["start_time"] > 15 * 60
+            ):  ## Wait for 15 minutes
+                ## check "close" of nifty index is between high and low before the start of the strategy
                 if (
                     ohlcvt["c"] < self.user_data["nifty_index"]["high"]
                     and ohlcvt["c"] > self.user_data["nifty_index"]["low"]
@@ -75,13 +82,19 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     ## Update the start time
                     self.user_data["start_time"] = time.time()
                     ## Unsubscribe from the nifty index feed
-
                     self.feed_manager.unsubscribe(
                         scrip_codes=[StrangleStrategy.NIFTY_INDEX]
                     )
+                    ## we are ready to take the trade
                     return True
         return False
 
+    ## @override
+    ## Strategy brief: If we are in a trade, update the leg pnl
+    ## If we are not in a trade, check if we need to take the trade
+    ## If yes, take the trade
+    ## If we are in a trade, check if we need to exit
+    ## If yes, exit the trade
     def run(self, ohlcvt: dict, user_data: dict = None):
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
@@ -107,24 +120,21 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
         elif self.entry(ohlcvt):
             ## Take strangle
-            self.logger.info("Taking a strangle at closest to preminum")
-            ## Get the strangle strikes
-            # strike = self.strangle_strikes(8.0, "NIFTY")
-            # ## Subscribe to the strike - DOEN'T WORK
-            # self.feed_manager.subscribe(
-            #     scrip_codes=[strike["ce_code"], strike["pe_code"]]
-            # )
-            # self.scrip_codes = [strike["ce_code"], strike["pe_code"]]
-
             self.order_manager.place_short(self.strikes, self.tag)
             self.order_manager.place_short_stop_loss(self.tag)
 
         return super().run(ohlcvt)
 
+    ## @override
+    ## Stop the feed manager. This is not required as the feed manager will
+    ## stop automatically after 15 seconds if no scrip is subscribed
     def stop(self):
         self.feed_manager.stop()
         return super().stop()
 
+    ## @override
+    ## If one of the leg is exited (due to stop loss), update the stop loss order
+    ## Move the stop loss order to entry price of the other leg
     def order_placed(self, order: dict, subsList: dict, user_data: dict):
         super().order_placed(order, subsList, user_data)
         ## user_data["order_update"] is a list of scrip codes removed from subscription
