@@ -6,6 +6,7 @@ import json
 import datetime
 import live_feed_manager
 
+
 class OrderManager:
     def __init__(self, client, config) -> None:
         self.client = client
