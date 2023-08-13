@@ -6,12 +6,13 @@ import math
 import logging
 import re
 from typing import Any
+from clients.iclientmanager import IClientManager
 
 
 class StrikesManager:
     TODAY_TIMESTAMP = int(datetime.datetime.today().timestamp())
 
-    def __init__(self, client, config: dict) -> None:
+    def __init__(self, client: IClientManager, config: dict) -> None:
         self.client = client
         self.logger = logging.getLogger(__name__)
         self.config = config

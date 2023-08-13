@@ -11,16 +11,14 @@ parent_directory = os.path.dirname(current_directory)
 sys.path.append(parent_directory)
 
 import live_feed_manager
-import client_manager
 import strikes_manager
 import json
 import logging
+from clients.client_5paisa import Client as Client5Paisa
 
 
 def straddle_calculator(res: dict, user_data: dict):
     code = res["code"]
-    if code == live_feed_manager.LiveFeedManager.NIFTY_SCRIP_CODE:
-        return
     ltp = res["c"]
     target = user_data["target"]
     mtm_loss = user_data["mtm_loss"]
@@ -66,9 +64,10 @@ def straddle_calculator(res: dict, user_data: dict):
 ## Example usage
 if __name__ == "__main__":
     ## Setup logging
-    client_manager.configure_logger("DEBUG")
+    Client5Paisa.configure_logger("DEBUG")
     ## Setup client
-    client = client_manager.login("..\creds.json")
+    client = Client5Paisa("..\creds.json")
+    client.login()
     ## Get straddle strikes and premium
     sm = strikes_manager.StrikesManager(client, {})
     staddle_strikes = sm.straddle_strikes("FINNIFTY")
