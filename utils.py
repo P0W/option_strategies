@@ -1,14 +1,12 @@
 ## Author : Prashant Srivastava
-## Last Modified Date  : Dec 26th, 2022
 
 import requests
 import logging
 import json
 import sys
 from py5paisa import *
-from strikes_manager import StrikesManager
+from common.strikes_manager import StrikesManager
 import pandas as pd
-import datetime
 
 
 def get_india_vix() -> float:
