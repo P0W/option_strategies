@@ -5,10 +5,11 @@ import time
 import json
 import datetime
 import live_feed_manager
+from clients.iclientmanager import IClientManager
 
 
 class OrderManager:
-    def __init__(self, client, config) -> None:
+    def __init__(self, client: IClientManager, config) -> None:
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)

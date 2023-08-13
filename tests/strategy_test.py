@@ -14,7 +14,7 @@ import base_strategy
 import live_feed_manager
 import order_manager
 import strikes_manager
-import client_manager
+from clients.client_5paisa import Client as Client5Paisa
 
 
 ## The Strangle Strategy. Refer entry and exit methods for the strategy
@@ -169,9 +169,10 @@ class StrangleStrategy(base_strategy.BaseStrategy):
 
 if __name__ == "__main__":
     ## Setup logging
-    client_manager.configure_logger("DEBUG")
+    Client5Paisa.configure_logger("DEBUG")
     ## Setup client
-    client = client_manager.login("..\creds.json")
+    client = Client5Paisa("..\creds.json")
+    client.login()
 
     ## Set up Config
     config = {

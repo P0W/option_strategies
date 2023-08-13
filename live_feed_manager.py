@@ -5,10 +5,11 @@ import json
 import queue
 import threading
 from typing import List, Callable
+from clients.iclientmanager import IClientManager
 
 
 class LiveFeedManager:
-    def __init__(self, client, config: dict):
+    def __init__(self, client: IClientManager, config: dict):
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -179,7 +180,7 @@ class LiveFeedManager:
             payload = self.client.Request_Feed("mf", "u", self.req_list)
 
             ## bug in 5paisa websocket send_data implementation, use the object directly
-            self.client.ws.send(json.dumps(payload))
+            self.client.send_data(json.dumps(payload))
             ## close the websocket connection
             self.client.close_data()
             self.req_list = []

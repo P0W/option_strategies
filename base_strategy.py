@@ -2,8 +2,10 @@
 
 import logging
 import time
+from abc import ABC, abstractmethod
 
-class BaseStrategy:
+
+class BaseStrategy(ABC):
     def __init__(self, name: str, scrip_codes: list):
         self.scrip_codes = scrip_codes
         self.name = name
@@ -11,9 +13,11 @@ class BaseStrategy:
         self.executed_orders = None
         self.tag = "%st%d" % (self.name, int(time.time()))
 
+    @abstractmethod
     def entry(self, ohlcvt: dict) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
     def exit(self, ohlcvt: dict) -> bool:
         raise NotImplementedError
 
@@ -37,12 +41,14 @@ class BaseStrategy:
     def get_all_executed_orders(self):
         return self.executed_orders
 
+    @abstractmethod
     def run(self, ohlcvt: dict, user_data: dict = None):
         if self.is_in_position():
             ltp = ohlcvt["c"]
             code = ohlcvt["code"]
             self.executed_orders[code]["ltp"] = ltp
 
+    @abstractmethod
     def order_placed(self, order: dict, subsList: dict, user_data: dict):
         ## This will be called for "Fully Executed"" only
         ## check if order["ScripCode"] is in self.scrip_codes
@@ -55,8 +61,10 @@ class BaseStrategy:
                 "pnl": 0.0,
             }
 
+    @abstractmethod
     def stop(self):
         raise NotImplementedError
-    
+
+    @abstractmethod
     def start(self):
         raise NotImplementedError
