@@ -10,8 +10,8 @@ parent_directory = os.path.dirname(current_directory)
 # Add the parent directory to sys.path temporarily
 sys.path.append(parent_directory)
 
-import live_feed_manager
-import strikes_manager
+from common import live_feed_manager
+from common import strikes_manager
 import json
 import logging
 from clients.client_5paisa import Client as Client5Paisa

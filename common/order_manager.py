@@ -4,7 +4,7 @@ import logging
 import time
 import json
 import datetime
-import live_feed_manager
+from common import live_feed_manager
 from clients.iclientmanager import IClientManager
 
 

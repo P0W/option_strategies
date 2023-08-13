@@ -10,10 +10,10 @@ parent_directory = os.path.dirname(current_directory)
 # Add the parent directory to sys.path temporarily
 sys.path.append(parent_directory)
 
-import base_strategy
-import live_feed_manager
-import order_manager
-import strikes_manager
+from strategy import base_strategy
+from common import live_feed_manager
+from common import order_manager
+from common import strikes_manager
 from clients.client_5paisa import Client as Client5Paisa
 
 
