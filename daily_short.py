@@ -6,10 +6,10 @@ import logging
 import json
 import argparse
 
-import strikes_manager
-import order_manager
-import utils
-import client_manager
+from common import strikes_manager
+from common import  order_manager
+import  utils
+from clients.client_5paisa import Client as Client5Paisa
 
 
 def main(args) -> None:
@@ -43,9 +43,10 @@ def main(args) -> None:
     monitor_tag = None
 
     if type(args.creds) is dict:
-        client = client_manager.login_from_json(args.creds)
+        client = Client5Paisa(args.creds)
     else:
-        client = client_manager.login(cred_file=args.creds)
+        client = Client5Paisa(cred_file=args.creds)
+    client.login()
     sm = strikes_manager.StrikesManager(client=client, config=config)
     om = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0:
@@ -166,5 +167,5 @@ if __name__ == "__main__":
     parser.add_argument("--strangle", action="store_true", help="Place Strangle")
     parser.add_argument("--straddle", action="store_true", help="Place Straddle")
     args = parser.parse_args()
-    client_manager.configure_logger(args.log_level)
+    Client5Paisa.configure_logger(args.log_level)
     main(args)
