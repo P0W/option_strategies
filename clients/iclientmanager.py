@@ -6,8 +6,8 @@ import logging
 import pathlib
 import sys
 
-class IClientManager(ABC):
 
+class IClientManager(ABC):
     def configure_logger(log_level):
         ## Setup logging
         ## create a directory logs if it does not exist
@@ -25,55 +25,55 @@ class IClientManager(ABC):
             ],
             level=log_level,
         )
-    
+
     @abstractmethod
     def login(self, cred_file: str = "creds.json"):
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_option_chain(self, exch: str, symbol: str, expire: int):
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_expiry(self, exch: str, symbol: str):
         raise NotImplementedError
-    
+
     @abstractmethod
     def place_order(self, **order):
         raise NotImplementedError
-    
+
     @abstractmethod
     def fetch_order_status(self, req_list: list):
         raise NotImplementedError
-    
+
     @abstractmethod
     def modify_order(self, **order):
         raise NotImplementedError
-    
+
     @abstractmethod
     def cancel_order(self, **order):
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_tradebook(self):
         raise NotImplementedError
-    
+
     @abstractmethod
     def order_book(self):
         raise NotImplementedError
-    
+
     @abstractmethod
     def positions(self):
         raise NotImplementedError
-    
+
     @abstractmethod
     def cancel_bulk_order(self, ExchOrderIDs: list):
         raise NotImplementedError
-    
+
     @abstractmethod
     def Request_Feed(self, Method: str, Operation: str, req_list: list):
         raise NotImplementedError
-    
+
     @abstractmethod
     def connect(self, wspayload: dict):
         raise NotImplementedError
@@ -85,11 +85,11 @@ class IClientManager(ABC):
     @abstractmethod
     def close_data(self):
         raise NotImplementedError
-    
+
     @abstractmethod
     def receive_data(self, msg: any):
         raise NotImplementedError
-    
+
     @abstractmethod
     def send_data(self, open_: any):
         raise NotImplementedError
