@@ -15,17 +15,22 @@ class OrderManager:
         self.logger = logging.getLogger(__name__)
         self.lm = None
         self.target_achieved = False
+        self.exchangeType = "D"
+
+    def set_ExchangeType(self, exchType: int) -> str:
+        self.exchangeType = exchType
 
     def place_short(self, strikes: dict, tag: str) -> None:
         for item in ["ce", "pe"]:
             price = 0.0  # strikes["%s_ltp" % item] # Market Order if price =0.0
             textinfo = """client.place_order(OrderType='S', 
                                             Exchange='N', 
-                                            ExchangeType='D', 
+                                            ExchangeType=%s, 
                                             ScripCode=%d,
                                             Qty=%d,
                                             Price=%f, IsIntraday=True,
                                             RemoteOrderID=%s)""" % (
+                self.exchangeType,
                 strikes["%s_code" % item],
                 self.config["QTY"],
                 price,
@@ -35,7 +40,7 @@ class OrderManager:
             order_status = self.client.place_order(
                 OrderType="S",
                 Exchange="N",
-                ExchangeType="D",
+                ExchangeType=self.exchangeType,
                 ScripCode=strikes["%s_code" % item],
                 Qty=self.config["QTY"],
                 Price=price,
@@ -50,10 +55,10 @@ class OrderManager:
         self.logger.info("Fetching order status for %s" % tag)
         id = []
         while len(id) != 2:
-            r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
-                "OrdStatusResLst"
-            ]
-            for order in r:
+            order_status = self.client.fetch_order_status(
+                [{"Exch": "N", "RemoteOrderID": tag}]
+            )["OrdStatusResLst"]
+            for order in order_status:
                 eoid = order["ExchOrderID"]
                 self.logger.info("ExchOrderID: %d" % eoid)
                 if eoid != "":
@@ -88,7 +93,7 @@ class OrderManager:
                     order_status = self.client.place_order(
                         OrderType="B",
                         Exchange="N",
-                        ExchangeType="D",
+                        ExchangeType=self.exchangeType,
                         ScripCode=scrip,
                         Qty=qty,
                         Price=higher_price,

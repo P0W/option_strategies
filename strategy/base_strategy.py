@@ -11,7 +11,7 @@ class BaseStrategy(ABC):
         self.name = name
         self.logger = logging.getLogger(__name__)
         self.executed_orders = None
-        self.tag = "%st%d" % (self.name, int(time.time()))
+        self.tag = "%s%d" % (self.name.lower(), int(time.time()))
 
     @abstractmethod
     def entry(self, ohlcvt: dict) -> bool:
@@ -30,6 +30,8 @@ class BaseStrategy(ABC):
         return total_pnl
 
     def update_leg(self, code, leg_pnl):
+        if not self.executed_orders:
+            self.executed_orders = {}
         self.executed_orders[code]["pnl"] = leg_pnl
 
     def is_in_position(self):
