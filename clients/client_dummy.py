@@ -1,17 +1,32 @@
 import json
 import logging
-import iclientmanager
+import time
+from . import iclientmanager
 import websocket
+from pymongo import MongoClient
 
 
 class Client(iclientmanager.IClientManager):
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self.server_thread = None
-        self.data_thread = None
-        self.connected = False
+    def __init__(self):
+        self.host = "localhost"
+        self.port = 8765
         self.logger = logging.getLogger(__name__)
+
+        # Connection parameters
+        username = 'root'
+        password = 'admin'
+        host = 'localhost'
+        port = 27017
+        auth_source = 'admin'  # The authentication database
+
+        # Create the connection URL with authentication
+        connection_url = f"mongodb://{username}:{password}@{host}:{port}/{auth_source}"
+        self.mongo_client = MongoClient(connection_url)
+        ## Create a database
+        self.db = self.mongo_client["test-database"]
+        ## Create a collection
+        self.collection = self.db["orders"]
+        self.web_url = None
 
     def Request_Feed(self, Method: str, Operation: str, req_list: list):
         payload = {"Method": "mf", "Operation": Operation, "MarketFeedData": req_list}
@@ -34,9 +49,9 @@ class Client(iclientmanager.IClientManager):
         except Exception as e:
             self.logger.error(e)
 
-    def send_data(self, msg: any):
+    def send_data(self, wspayload: any):
         try:
-            self.ws.send(msg)
+            self.ws.send(json.dumps(wspayload))
         except Exception as e:
             self.logger.error(e)
 
@@ -59,12 +74,37 @@ class Client(iclientmanager.IClientManager):
         except Exception as e:
             self.logger.error(e)
 
-    ## mock all the other methods simple display args
     def place_order(self, **order):
-        self.logger.info(f"place_order: {order}")
+        ## Send the order placed message after 1 second
+        time.sleep(1)
+        ## Add the order to the database
+        self.collection.insert_one(
+            {
+                ## random ExchOrderID 16 char only digits
+                "ExchOrderID": str(int(time.time()))[-16:],
+                "Status": "Fully Executed",
+                "ScripCode": order["ScripCode"],
+                "RemoteOrderID": order["RemoteOrderID"],
+                "Qty": order["Qty"],
+                "Rate": order["Price"],
+                "Price": order["Price"],
+            }
+        )
+        if not "sl" in order["RemoteOrderID"]: ## Don't hit the stoploss
+            self.logger.info(f"place_order: {order}")
+            self.send_data(json.dumps({"placed": order["ScripCode"], "Price": order["Price"], "Qty": order["Qty"]}))
+        return {"Message": "Success"}
 
     def fetch_order_status(self, req_list: list):
-        self.logger.info(f"fetch_order_status: {req_list}")
+        response = {"OrdStatusResLst": []}
+        ## find the order in the database with each items in req_list matching the "RemoteOrderID" field
+        for req in req_list:
+            order = self.collection.find_one({"RemoteOrderID": req["RemoteOrderID"]})
+            if order:
+                ## change ExchOrderID to int(ExchOrderID)
+                order["ExchOrderID"] = int(order["ExchOrderID"])
+                response["OrdStatusResLst"].append(order)
+        return response
 
     def modify_order(self, **order):
         self.logger.info(f"modify_order: {order}")
@@ -73,25 +113,48 @@ class Client(iclientmanager.IClientManager):
         self.logger.info(f"cancel_order: {order}")
 
     def get_tradebook(self):
-        self.logger.info(f"get_tradebook")
+        response = {"TradeBookDetail": []}
+        ## find all orders in the database with status "Fully Executed"
+        for order in self.collection.find({"Status": "Fully Executed"}):
+            response["TradeBookDetail"].append(order)
+        return response
 
     def order_book(self):
-        self.logger.info(f"order_book")
+        return self.get_tradebook()
 
     def positions(self):
         self.logger.info(f"positions")
 
     def cancel_bulk_order(self, ExchOrderIDs: list):
-        self.logger.info(f"cancel_bulk_order: {ExchOrderIDs}")
+        ## update the database with status "Cancelled" for each ExchOrderID in ExchOrderIDs
+        for ExchOrderID in ExchOrderIDs:
+            self.collection.update_one(
+                {"ExchOrderID": ExchOrderID}, {"$set": {"Status": "Cancelled"}}
+            )
 
     def get_option_chain(self, exch: str, symbol: str, expire: int):
-        return super().get_option_chain(exch, symbol, expire)
+        return {
+            "Options": [
+                {
+                    "LastRate": 8.5,
+                    "ScripCode": 256264,
+                    "Name": "NIFTY23AUG19600CE",
+                    "CPType": "CE",
+                },
+                {
+                    "LastRate": 8.1,
+                    "ScripCode": 256265,
+                    "Name": "NIFTY23AUG19100PE",
+                    "CPType": "PE",
+                },
+            ]
+        }
 
     def get_expiry(self, exch: str, symbol: str):
-        return super().get_expiry(exch, symbol)
+        return {"Expiry": []}
 
     def login(self, cred_file: str = "creds.json"):
-        return super().login(cred_file)
+        return self
 
 
 if __name__ == "__main__":
@@ -101,7 +164,7 @@ if __name__ == "__main__":
         print(msg)
 
     client = Client("localhost", 8765)
-    client.connect(client.Request_Feed("s", [6229, 6228, 6227]))
+    client.connect(client.Request_Feed("mf", "s", [256264, 256265]))
     client.receive_data(display)
     # client.close_data()
     # client.place_order(OrderType='B', Exchange='N', ExchangeType='D', ScripCode=256265, Qty=1, Price=1, IsIntraday=True, RemoteOrderID='1')

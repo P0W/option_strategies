@@ -56,6 +56,8 @@ class BaseStrategy(ABC):
         ## check if order["ScripCode"] is in self.scrip_codes
         ## if yes, add to self.executed_orders
         if order["ScripCode"] in self.scrip_codes:
+            if not self.executed_orders:
+                self.executed_orders = {}
             self.executed_orders[order["ScripCode"]] = {
                 "rate": order["Price"],
                 "qty": order["Qty"],
