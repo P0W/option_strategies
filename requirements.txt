@@ -7,3 +7,4 @@ requests
 py5paisa
 black
 pyotp
+websockets
