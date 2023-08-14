@@ -21,6 +21,7 @@ from clients.client_5paisa import Client as Client5Paisa
 class StrangleStrategy(base_strategy.BaseStrategy):
     ## NIFTY_INDEX is the scrip code for NIFTY index
     NIFTY_INDEX = 999920000
+    BANKNIFTY_INDEX = 999920005
 
     ## Constructor
     def __init__(
@@ -38,8 +39,8 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.order_manager = order_manager
         self.feed_manager = feed_manager
 
-        self.target_profit = 1500.0
-        self.sl_target = -1000.0
+        self.target_profit = 100.0
+        self.sl_target = -200.0
         self.strikes = strikes
 
         self.user_data = {
@@ -71,9 +72,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.user_data["nifty_index"]["low"] = ohlcvt["l"]
             if self.user_data["nifty_index"]["high"] == -1.0:
                 self.user_data["nifty_index"]["high"] = ohlcvt["h"]
-            if (
-                time.time() - self.user_data["start_time"] > 15 * 60
-            ):  ## Wait for 15 minutes
+            if time.time() - self.user_data["start_time"] > 0:  ## Wait for 15 minutes
                 ## check "close" of nifty index is between high and low before the start of the strategy
                 if (
                     ohlcvt["c"] < self.user_data["nifty_index"]["high"]
@@ -88,6 +87,15 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     ## we are ready to take the trade
                     self.logger.info("Ready to take the trade")
                     return True
+            else:
+                self.logger.info(
+                    "Nifty at %f waiting for entry condition [%f, %f]"
+                    % (
+                        ohlcvt["c"],
+                        self.user_data["nifty_index"]["low"],
+                        self.user_data["nifty_index"]["high"],
+                    )
+                )
         return False
 
     ## @override
@@ -149,6 +157,10 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 code for code in all_executed_orders if code != scrip_code
             ][0]
             ## update the stop loss order - Move SL to entry price
+            self.logger.info(
+                "Modifying stop loss order for %s, %f"
+                % (other_scrip_code, all_executed_orders[other_scrip_code]["rate"])
+            )
             self.order_manager.modify_stop_loss_order(
                 tag=self.tag,
                 scrip_code=other_scrip_code,
@@ -178,8 +190,9 @@ if __name__ == "__main__":
     config = {
         "CLOSEST_PREMINUM": 8.0,
         "SL_FACTOR": 1.55,
-        "QTY": 150,  ## 3 lot of NIFTY
+        "QTY": 1000,  ## 1 lot of NIFTY
         "INDEX_OPTION": "NIFTY",
+        "exchangeType": "D",
     }
     ## Create live feed and start the strategy monitor
     live_feed = live_feed_manager.LiveFeedManager(client, config)
@@ -187,10 +200,17 @@ if __name__ == "__main__":
     om = order_manager.OrderManager(client, config)
     ## Create strikes manager
     sm = strikes_manager.StrikesManager(client, config)
-    strikes = sm.strangle_strikes(
-        closest_price_thresh=config["CLOSEST_PREMINUM"], index="NIFTY"
-    )
-    strategy = StrangleStrategy(
-        strikes=strikes, feed_manager=live_feed, order_manager=om, strikes_manager=sm
-    )
-    strategy.start()
+    try:
+        strikes = sm.strangle_strikes(
+            closest_price_thresh=config["CLOSEST_PREMINUM"], index="NIFTY"
+        )
+        strategy = StrangleStrategy(
+            strikes=strikes,
+            feed_manager=live_feed,
+            order_manager=om,
+            strikes_manager=sm,
+        )
+        strategy.start()
+    except Exception as e:
+        print(e)
+        strategy.stop()

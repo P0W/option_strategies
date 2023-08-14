@@ -9,6 +9,9 @@ from clients.iclientmanager import IClientManager
 
 
 class LiveFeedManager:
+    NIFTY_INDEX = 999920000
+    BANKNIFTY_INDEX = 999920005
+
     def __init__(self, client: IClientManager, config: dict):
         self.client = client
         self.config = config
@@ -23,6 +26,7 @@ class LiveFeedManager:
         self.receiver_thread = None
         self.scrip_dequeuer_thread = None
         self.order_dequeuer_thread = None
+        self.exchangeType = config["exchangeType"] if "exchangeType" in config else "D"
 
     def callback_dequeuer(
         self,
@@ -46,17 +50,19 @@ class LiveFeedManager:
 
     def order_dequeuer(
         self,
-        callback: Callable[[dict, list, dict], None],
         subscription_list: list,
+        user_callback: Callable[[dict, list, dict], None],
         user_data: dict = {},
     ):
         while not self.shutdown_flag.is_set():
             try:
                 order_data = self.order_queue.get(timeout=1)
-                callback(order_data, subscription_list, user_data)
+                self._on_order_update(
+                    order_data, subscription_list, user_data, user_callback
+                )
                 self.order_queue.task_done()
             except queue.Empty:
-                ## no order data received in the last 5 seconds
+                ## no order data received in the last 1 seconds
                 pass
 
     def monitor(
@@ -117,8 +123,21 @@ class LiveFeedManager:
                 except Exception as e:
                     self.logger.error(f"Error processing message: {e}")
 
+            if LiveFeedManager.NIFTY_INDEX in scrip_codes:
+                self.req_list.append(
+                    {
+                        "Exch": "N",
+                        "ExchType": "C",
+                        "ScripCode": LiveFeedManager.NIFTY_INDEX,
+                    }
+                )
+                scrip_codes.pop(scrip_codes.index(LiveFeedManager.NIFTY_INDEX))
+
             self.req_list.extend(
-                [{"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes]
+                [
+                    {"Exch": "N", "ExchType": self.exchangeType, "ScripCode": x}
+                    for x in scrip_codes
+                ]
             )
             req_data = self.client.Request_Feed("mf", "s", self.req_list)
             self.client.connect(req_data)
@@ -142,16 +161,9 @@ class LiveFeedManager:
             self.scrip_dequeuer_thread.start()
 
             # Start the order_dequeuer thread
-            if on_order_update:
-                self.on_order_update = on_order_update
-                ## use lambda to use on_order callback as free function
-            callback_args = (
-                lambda x, y: self._on_order_update(x, y),
-                self.req_list,
-                user_data,
-            )
             self.order_dequeuer_thread = threading.Thread(
-                target=self.order_dequeuer, args=callback_args
+                target=self.order_dequeuer,
+                args=(self.req_list, user_data, on_order_update),
             )
             self.logger.info("Starting order update callback thread.")
             self.order_dequeuer_thread.start()
@@ -197,13 +209,12 @@ class LiveFeedManager:
         ## Default implementation - simply log
         self.logger.info(f"Stop loss order: {message}")
 
-    def on_order_update(
-        self, message: dict, subscription_list: list, user_data: dict = {}
-    ):
-        pass
-
     def _on_order_update(
-        self, message: dict, subscription_list: list, user_data: dict = {}
+        self,
+        message: dict,
+        subscription_list: list,
+        user_data: dict = {},
+        user_callback: Callable[[dict, list, dict], None] = None,
     ):
         if not "order_update" in user_data:
             user_data["order_update"] = []
@@ -219,14 +230,18 @@ class LiveFeedManager:
             self.on_sl_order(message)
         else:
             self.logger.info(f"Order update: {message}")
-        self.on_order_update(message, subscription_list, user_data)
+        if user_callback:
+            user_callback(message, subscription_list, user_data)
 
     @DeprecationWarning  ## Doesn't work - Don't use
     def subscribe(self, scrip_codes: List[int]) -> bool:
         with self.monitoring_lock:
             self.logger.info(f"Subscribing to scrips: {scrip_codes}")
             self.req_list.extend(
-                [{"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes]
+                [
+                    {"Exch": "N", "ExchType": self.exchangeType, "ScripCode": x}
+                    for x in scrip_codes
+                ]
             )
             req_data = self.client.Request_Feed("mf", "s", self.req_list)
             ## bug in 5paisa websocket send_data implementation, use the object directly
@@ -238,18 +253,14 @@ class LiveFeedManager:
     def unsubscribe(self, scrip_codes: List[int]) -> bool:
         with self.monitoring_lock:
             unsubscribe_list = [
-                {"Exch": "N", "ExchType": "D", "ScripCode": x} for x in scrip_codes
+                {"Exch": "N", "ExchType": self.exchangeType, "ScripCode": x}
+                for x in scrip_codes
             ]
             req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
-            ## bug in 5paisa websocket send_data implementation, use the object directly
-            if self.client.ws is not None:
-                self.client.ws.send(json.dumps(req_data))
-                ## update the original subscribe_list
-                self.req_list = [
-                    item
-                    for item in self.req_list
-                    if item["ScripCode"] not in scrip_codes
-                ]
-                self.logger.info(f"Unsubscribed from scrips: {scrip_codes}")
-                return True
-        return False
+            self.client.send_data(json.dumps(req_data))
+            ## update the original subscribe_list
+            self.req_list = [
+                item for item in self.req_list if item["ScripCode"] not in scrip_codes
+            ]
+            self.logger.info(f"Unsubscribed from scrips: {scrip_codes}")
+        return True

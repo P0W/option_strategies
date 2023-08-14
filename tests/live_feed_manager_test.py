@@ -79,7 +79,7 @@ if __name__ == "__main__":
         on_scrip_data=straddle_calculator,
         user_data={
             "target": straddle_premium * 1.01,
-            "mtm_loss": straddle_premium * 0.99,
+            "mtm_loss": -1 * straddle_premium * 0.99,
             "start_time": time.time(),
             "strikes": {},
         },
