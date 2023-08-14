@@ -20,7 +20,7 @@ class MockDataGenerator:
             "Exch": self.exch,
             "ExchType": self.exch_type,
             "Token": scrip_code,
-            "LastRate": round(random.uniform(100, 150), 2),
+            "LastRate": round(random.uniform(4, 50), 2),
             "LastQty": random.randint(100, 1000),
             "TotalQty": random.randint(1000000, 10000000),
             "High": round(random.uniform(100, 150), 2),
@@ -36,7 +36,7 @@ class MockDataGenerator:
             "TBidQ": random.randint(100000, 200000),
             "TOffQ": random.randint(100000, 200000),
             "TickDt": f"/Date({int(time.time())}000)/",
-            "ChgPcnt": round(random.uniform(-5, 5), 5),
+            "ChgPcnt": round(random.uniform(-2, 2), 5),
         }
 
     def subscribe(self, scrip_codes):
@@ -65,16 +65,27 @@ class WebSocketServer:
         self.clients.add(websocket)
         try:
             async for message in websocket:
-                data = json.loads(message) ## {"Operation": Operation, "MarketFeedData": req_list}
-                if data.get("Operation") == "s":
-                    self.data_generator.subscribe(data["MarketFeedData"])
-                elif data.get("Operation") == "u":
-                    self.data_generator.unsubscribe(data["MarketFeedData"])
-                elif data.get("placed"):
-                    await websocket.send({
-                        "Status": "Fully Executed",
-                        "ScripCode": data["placed"],
-                    })
+                data = json.loads(
+                    message
+                )  ## {"Operation": Operation, "MarketFeedData": req_list}
+                if "Operation" in data:
+                    scrip_codes = [req["ScripCode"] for req in data["MarketFeedData"]]
+                    if data.get("Operation") == "s":
+                        self.data_generator.subscribe(scrip_codes)
+                    elif data.get("Operation") == "u":
+                        self.data_generator.unsubscribe(scrip_codes)
+                elif "placed" in json.loads(data):
+                    data = json.loads(data)
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "Status": "Fully Executed",
+                                "ScripCode": data["placed"],
+                                "Price": data["Price"],
+                                "Qty": data["Qty"],
+                            }
+                        )
+                    )
         except websockets.exceptions.ConnectionClosedOK:
             pass
         finally:
@@ -85,8 +96,6 @@ class WebSocketServer:
             for scrip_code in self.data_generator.subscriptions:
                 tick_data = self.data_generator.generate_tick(scrip_code)
                 data = json.dumps([tick_data])
-                ## display data intended as json
-                print(json.dumps(tick_data, indent=2))
                 for client in self.clients:
                     await client.send(data)
             await asyncio.sleep(1)

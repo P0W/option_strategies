@@ -51,8 +51,8 @@ class LiveFeedManager:
     def order_dequeuer(
         self,
         subscription_list: list,
-        user_callback: Callable[[dict, list, dict], None],
         user_data: dict = {},
+        user_callback: Callable[[dict, list, dict], None] = None
     ):
         while not self.shutdown_flag.is_set():
             try:
