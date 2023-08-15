@@ -5,6 +5,8 @@ import json
 import random
 import time
 import logging
+import numpy as np
+from scipy.stats import norm
 
 
 class MockDataGenerator:
@@ -14,13 +16,65 @@ class MockDataGenerator:
         self.tick_id = 0
         self.subscriptions = set()
 
+        # Configurable parameters
+        self.initial_nifty = 19434.5
+        # self.time_to_expiration = 3 / 365  # 3 days in years
+        self.risk_free_rate = 0.07209
+        self.volatility = 0.12
+
+    def option_price_generator(self, strike_price, days_to_expiration):
+        time_to_expiration = days_to_expiration / 365
+        while True:
+            nifty = self.initial_nifty + np.random.uniform(-0.5, 0.6)
+            d1 = (
+                np.log(nifty / strike_price)
+                + (self.risk_free_rate + 0.5 * self.volatility**2)
+                * time_to_expiration
+            ) / (self.volatility * np.sqrt(time_to_expiration))
+            d2 = d1 - self.volatility * np.sqrt(time_to_expiration)
+
+            call_price = nifty * norm.cdf(d1) - strike_price * np.exp(
+                -self.risk_free_rate * time_to_expiration
+            ) * norm.cdf(d2)
+            put_price = strike_price * np.exp(
+                -self.risk_free_rate * time_to_expiration
+            ) * norm.cdf(-d2) - nifty * norm.cdf(-d1)
+
+            yield {"Nifty": nifty, "CE": call_price, "PE": put_price}
+
+            # Simulate changes
+            ## Reduce the time to expiration by 1 sec
+            time_to_expiration -= 1 / (365 * 24 * 60 * 60)
+            self.volatility = max(
+                0.01, self.volatility + np.random.uniform(-0.05, 0.05)
+            )
+
+    ## Randome cooked logic:
+    ## If scripCode starts with 20 its CE, if its 30 its PE, following digit present strike 19450, 19100, etc
+    ## first 2 digit represent time to expiry in days example 03 - 3 days,  07-7 days, 30 30 -days, etc
+    ## So for instance:
+    ## 201945007 represent 19450 CE 7 days to expiry
     def generate_tick(self, scrip_code):
         self.tick_id += 1
+        ce_pe = None
+        if scrip_code >= 300000000:
+            ce_pe = "PE"
+            remain = scrip_code - 300000000
+        elif scrip_code >= 200000000:
+            ce_pe = "CE"
+            remain = scrip_code - 200000000
+        if ce_pe:
+            strike = remain // 100
+            time_to_expiry = scrip_code % 100
+            option_prices = self.option_price_generator(strike, time_to_expiry / 365)
+            option_price = next(option_prices)
         return {
             "Exch": self.exch,
             "ExchType": self.exch_type,
             "Token": scrip_code,
-            "LastRate": round(random.uniform(4, 50), 2),
+            "LastRate": round(random.uniform(4, 50), 2)
+            if not ce_pe
+            else option_price[ce_pe],
             "LastQty": random.randint(100, 1000),
             "TotalQty": random.randint(1000000, 10000000),
             "High": round(random.uniform(100, 150), 2),

@@ -147,13 +147,13 @@ class Client(iclientmanager.IClientManager):
             "Options": [
                 {
                     "LastRate": 8.5,
-                    "ScripCode": 256264,
+                    "ScripCode": 201945003,
                     "Name": "NIFTY23AUG19600CE",
                     "CPType": "CE",
                 },
                 {
                     "LastRate": 8.1,
-                    "ScripCode": 256265,
+                    "ScripCode": 301945003,
                     "Name": "NIFTY23AUG19100PE",
                     "CPType": "PE",
                 },
@@ -174,5 +174,5 @@ if __name__ == "__main__":
         print(msg)
 
     client = Client("localhost", 8765)
-    client.connect(client.Request_Feed("mf", "s", [256264, 256265]))
+    client.connect(client.Request_Feed("mf", "s", [201945003, 301945003]))
     client.receive_data(display)
