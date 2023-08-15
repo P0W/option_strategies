@@ -88,11 +88,16 @@ class Client(iclientmanager.IClientManager):
                 "Qty": order["Qty"],
                 "Rate": order["Price"],
                 "Price": order["Price"],
+                "BuySell": order["OrderType"],
+                "ExchType" : order["Exchange"],
+                "DelvIntra": order["IsIntraday"],
+                "ExchType" : order["ExchangeType"],
+                "ScripName": "Dummy"
             }
         )
-        if not "sl" in order["RemoteOrderID"]: ## Don't hit the stoploss
-            self.logger.info(f"place_order: {order}")
-            self.send_data(json.dumps({"placed": order["ScripCode"], "Price": order["Price"], "Qty": order["Qty"]}))
+        ## Do not immediately send the order placed message when its sl order
+        if not order["RemoteOrderID"].startswith("sl"):
+            self.send_data({"placed": order["ScripCode"], "Price": order["Price"], "Qty": order["Qty"], "RemoteOrderID": order["RemoteOrderID"]})
         return {"Message": "Success"}
 
     def fetch_order_status(self, req_list: list):
@@ -103,6 +108,7 @@ class Client(iclientmanager.IClientManager):
             if order:
                 ## change ExchOrderID to int(ExchOrderID)
                 order["ExchOrderID"] = int(order["ExchOrderID"])
+                order["PendingQty"] = 0 ## Nothing pending all executed
                 response["OrdStatusResLst"].append(order)
         return response
 
@@ -120,7 +126,11 @@ class Client(iclientmanager.IClientManager):
         return response
 
     def order_book(self):
-        return self.get_tradebook()
+        response =  self.get_tradebook()["TradeBookDetail"]
+        ## add "OrderStatus" same as "Status"
+        for order in response:
+            order["OrderStatus"] = order["Status"]
+        return response
 
     def positions(self):
         self.logger.info(f"positions")
@@ -166,12 +176,3 @@ if __name__ == "__main__":
     client = Client("localhost", 8765)
     client.connect(client.Request_Feed("mf", "s", [256264, 256265]))
     client.receive_data(display)
-    # client.close_data()
-    # client.place_order(OrderType='B', Exchange='N', ExchangeType='D', ScripCode=256265, Qty=1, Price=1, IsIntraday=True, RemoteOrderID='1')
-    # client.fetch_order_status([{'Exch': 'N', 'RemoteOrderID': '1'}])
-    # client.modify_order(OrderType='B', Exchange='N', ExchangeType='D', ScripCode=256265, Qty=1, Price=1, IsIntraday=True, RemoteOrderID='1')
-    # client.cancel_order(OrderType='B', Exchange='N', ExchangeType='D', ScripCode=256265, Qty=1, Price=1, IsIntraday=True, RemoteOrderID='1')
-    # client.get_tradebook()
-    # client.order_book()
-    # client.positions()
-    # client.cancel_bulk_order(['1'])

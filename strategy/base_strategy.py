@@ -25,6 +25,7 @@ class BaseStrategy(ABC):
         ## sum all the pnl of each leg
         total_pnl = None
         if self.executed_orders:
+            total_pnl = 0.0
             for code in self.executed_orders.keys():
                 total_pnl += self.executed_orders[code]["pnl"]
         return total_pnl
