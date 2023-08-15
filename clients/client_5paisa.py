@@ -86,5 +86,5 @@ class Client(iclientmanager.IClientManager):
     def send_data(self, wspayload: dict):
         ## bug in 5paisa websocket send_data implementation, use the object directly
         if self._client.ws:
-            return self._client.ws.send(wspayload)
+            return self._client.ws.send(json.dumps(wspayload))
         return None

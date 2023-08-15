@@ -191,8 +191,7 @@ class LiveFeedManager:
             # Clean up resources
             payload = self.client.Request_Feed("mf", "u", self.req_list)
 
-            ## bug in 5paisa websocket send_data implementation, use the object directly
-            self.client.send_data(json.dumps(payload))
+            self.client.send_data(payload)
             ## close the websocket connection
             self.client.close_data()
             self.req_list = []
@@ -218,10 +217,10 @@ class LiveFeedManager:
     ):
         if not "order_update" in user_data:
             user_data["order_update"] = []
-        if message["Status"] == "Fully Executed":
+        if message["Status"] == "Fully Executed" :
             scrip_codes = [item["ScripCode"] for item in subscription_list]
-            if message["ScripCode"] in scrip_codes:
-                if self.unsubscribe([message["ScripCode"]]):
+            if message["ScripCode"] in scrip_codes and message["RemoteOrderID"].startswith("sl"): ## Unsubscribe from the scrip only if sl is hit
+                if self.unsubscribe([message["ScripCode"]]) :
                     user_data["order_update"].append(message["ScripCode"])
 
         elif message["Status"] == "Cancelled":
@@ -244,11 +243,8 @@ class LiveFeedManager:
                 ]
             )
             req_data = self.client.Request_Feed("mf", "s", self.req_list)
-            ## bug in 5paisa websocket send_data implementation, use the object directly
-            if self.client.ws is not None:
-                self.client.ws.send(json.dumps(req_data))
-                return True
-        return False
+            self.client.send_data(req_data)
+        return True
 
     def unsubscribe(self, scrip_codes: List[int]) -> bool:
         with self.monitoring_lock:
@@ -257,7 +253,7 @@ class LiveFeedManager:
                 for x in scrip_codes
             ]
             req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
-            self.client.send_data(json.dumps(req_data))
+            self.client.send_data(req_data)
             ## update the original subscribe_list
             self.req_list = [
                 item for item in self.req_list if item["ScripCode"] not in scrip_codes

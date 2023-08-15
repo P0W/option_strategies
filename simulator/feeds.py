@@ -74,8 +74,7 @@ class WebSocketServer:
                         self.data_generator.subscribe(scrip_codes)
                     elif data.get("Operation") == "u":
                         self.data_generator.unsubscribe(scrip_codes)
-                elif "placed" in json.loads(data):
-                    data = json.loads(data)
+                elif "placed" in data:
                     await websocket.send(
                         json.dumps(
                             {
@@ -83,6 +82,7 @@ class WebSocketServer:
                                 "ScripCode": data["placed"],
                                 "Price": data["Price"],
                                 "Qty": data["Qty"],
+                                "RemoteOrderID": data["RemoteOrderID"],
                             }
                         )
                     )
