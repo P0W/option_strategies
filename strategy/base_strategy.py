@@ -20,6 +20,10 @@ class BaseStrategy(ABC):
     @abstractmethod
     def exit(self, ohlcvt: dict) -> bool:
         raise NotImplementedError
+    
+    @abstractmethod
+    def get_leg_pnl(self, code:int, avg:float, qty: int, ltp: float):
+        raise NotImplementedError
 
     def get_pnl(self):
         ## sum all the pnl of each leg
@@ -29,11 +33,6 @@ class BaseStrategy(ABC):
             for code in self.executed_orders.keys():
                 total_pnl += self.executed_orders[code]["pnl"]
         return total_pnl
-
-    def update_leg(self, code, leg_pnl):
-        if not self.executed_orders:
-            self.executed_orders = {}
-        self.executed_orders[code]["pnl"] = leg_pnl
 
     def is_in_position(self):
         return True if self.executed_orders else False
@@ -54,6 +53,9 @@ class BaseStrategy(ABC):
             code = ohlcvt["code"]
             if code in self.executed_orders:
                 self.executed_orders[code]["ltp"] = ltp
+                self.executed_orders[code]["pnl"] = self.get_leg_pnl(code, self.executed_orders[code]["rate"], 
+                                                             self.executed_orders[code]["qty"], 
+                                                             self.executed_orders[code]["ltp"])
 
     def add_executed_orders(self, executed_orders: dict):
         if not self.executed_orders:

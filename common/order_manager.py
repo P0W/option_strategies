@@ -140,14 +140,14 @@ class OrderManager:
                 self.client.cancel_order(exch_order_id=order["ExchOrderID"])
 
     def get_sl_pending_orders(self, slTag: str):
-        r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": slTag}])[
+        order_status = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": slTag}])[
             "OrdStatusResLst"
         ]
-        ## get all ExchOrderID from r where "PendingQty" is not 0, Status is "Placed"
+        ## get all ExchOrderID from r where "PendingQty" is not 0, Status is "Pending"
         slExchOrderIDs = [
             {"ExchOrderID": "%s" % x["ExchOrderID"]}
-            for x in r
-            if x["PendingQty"] != 0 and x["Status"] == "Placed"
+            for x in order_status
+            if x["PendingQty"] != 0 and x["Status"] == "Pending"
         ]
         return slExchOrderIDs
 
@@ -334,8 +334,8 @@ class OrderManager:
         return feeds
 
     def squareoffSL(self, tag: str) -> None:
-        self.logger.info("Cancelling pending stop loss orders")
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
+        self.logger.info("Pending stop loss orders %s" % json.dumps(sl_exchan_orders))
         self.client.cancel_bulk_order(sl_exchan_orders)
 
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:
@@ -394,7 +394,7 @@ class OrderManager:
                         self.logger.info("Squaring off both legs")
                         self.squareoff(tag=tag, strikes=items["ltp"])
                         self.logger.info("Cancelling pending stop loss orders")
-                        self.client.cancel_bulk_order(items["sl_exchan_orders"])
+                        self.squareoffSL(tag=tag)
                         self.logger.info("Stopping live feed")
                         self.lm.stop()
                     # elif total_pnl <= mtm_loss:
