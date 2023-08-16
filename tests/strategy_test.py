@@ -41,8 +41,8 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.order_manager = order_manager
         self.feed_manager = feed_manager
 
-        self.target_profit = 100.0
-        self.sl_target = -200.0
+        self.target_profit = 50.0
+        self.sl_target = -100.0
         self.strikes = strikes
         self.qty = self.order_manager.config["QTY"]
 
@@ -53,6 +53,9 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.ltp = {}
 
         self.logger.info("Strangle Strategy Initiated")
+
+    def get_leg_pnl(self, code: int, avg: float, qty: int, ltp: float):
+        return (avg - ltp) * qty
 
     ## @override
     ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
@@ -109,17 +112,11 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## If we are in a trade, check if we need to exit
     ## If yes, exit the trade
     def run(self, ohlcvt: dict, user_data: dict = None):
+        super().run(ohlcvt)
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
         self.ltp[code] = ltp
         if self.is_in_position():
-            ## Update the leg pnl
-            avg, qty = self.get_executed_order(code)
-            if not avg:
-                return
-            leg_pnl = (avg - ltp) * qty
-            self.update_leg(code, leg_pnl)
-
             ## Check if we need to exit
             if self.exit(ohlcvt):
                 ## Square off both legs. Square off needs the ltp of the scrip
@@ -215,8 +212,8 @@ if __name__ == "__main__":
 
     ## Set up Config
     config = {
-        "CLOSEST_PREMINUM": 8.0,
-        "SL_FACTOR": 1.55,
+        "CLOSEST_PREMINUM": 12.0,
+        "SL_FACTOR": 1.40,
         "QTY": 50,  ## 1 lot of NIFTY
         "INDEX_OPTION": "NIFTY",
         "exchangeType": "D",
