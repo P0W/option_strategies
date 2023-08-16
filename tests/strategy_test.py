@@ -156,7 +156,6 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 }
             )
 
-        return super().run(ohlcvt)
 
     ## @override
     ## Stop the feed manager. This is not required as the feed manager will
