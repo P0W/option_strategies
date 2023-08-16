@@ -14,6 +14,8 @@ from strategy import base_strategy
 from common import live_feed_manager
 from common import order_manager
 from common import strikes_manager
+
+# from clients.client_dummy import Client as Client5Paisa
 from clients.client_5paisa import Client as Client5Paisa
 
 
@@ -42,11 +44,13 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.target_profit = 100.0
         self.sl_target = -200.0
         self.strikes = strikes
+        self.qty = self.order_manager.config["QTY"]
 
         self.user_data = {
             "nifty_index": {"low": -1.0, "high": -1.0},
             "start_time": time.time(),
         }
+        self.ltp = {}
 
         self.logger.info("Strangle Strategy Initiated")
 
@@ -72,9 +76,9 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.user_data["nifty_index"]["low"] = ohlcvt["l"]
             if self.user_data["nifty_index"]["high"] == -1.0:
                 self.user_data["nifty_index"]["high"] = ohlcvt["h"]
-            if time.time() - self.user_data["start_time"] > 0:  ## Wait for 15 minutes
+            if time.time() - self.user_data["start_time"] > 15:  ## Wait for 15 seconds
                 ## check "close" of nifty index is between high and low before the start of the strategy
-                if (
+                if True or (
                     ohlcvt["c"] < self.user_data["nifty_index"]["high"]
                     and ohlcvt["c"] > self.user_data["nifty_index"]["low"]
                 ):
@@ -107,9 +111,12 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     def run(self, ohlcvt: dict, user_data: dict = None):
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
+        self.ltp[code] = ltp
         if self.is_in_position():
             ## Update the leg pnl
             avg, qty = self.get_executed_order(code)
+            if not avg:
+                return
             leg_pnl = (avg - ltp) * qty
             self.update_leg(code, leg_pnl)
 
@@ -127,10 +134,30 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.order_manager.squareoffSL(tag=self.tag)
                 ## Unsubscribe from the strikes
                 self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
+                self.feed_manager.stop()
         elif self.entry(ohlcvt):
             ## Take strangle
             self.order_manager.place_short(self.strikes, self.tag)
             self.order_manager.place_short_stop_loss(self.tag)
+            ## due to some reson 5paisa on_order_placed not getting called, updated manually here
+            self.add_executed_orders(
+                {
+                    "ScripCode": self.strikes["ce_code"],
+                    "rate": self.ltp[self.strikes["ce_code"]],
+                    "qty": self.qty,
+                    "ltp": self.ltp[self.strikes["ce_code"]],
+                    "pnl": 0.0,
+                }
+            )
+            self.add_executed_orders(
+                {
+                    "ScripCode": self.strikes["pe_code"],
+                    "rate": self.ltp[self.strikes["pe_code"]],
+                    "qty": self.qty,
+                    "ltp": self.ltp[self.strikes["pe_code"]],
+                    "pnl": 0.0,
+                }
+            )
 
         return super().run(ohlcvt)
 
@@ -190,7 +217,7 @@ if __name__ == "__main__":
     config = {
         "CLOSEST_PREMINUM": 8.0,
         "SL_FACTOR": 1.55,
-        "QTY": 1000,  ## 1 lot of NIFTY
+        "QTY": 50,  ## 1 lot of NIFTY
         "INDEX_OPTION": "NIFTY",
         "exchangeType": "D",
     }
