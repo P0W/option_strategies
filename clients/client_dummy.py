@@ -7,7 +7,7 @@ from pymongo import MongoClient
 
 
 class Client(iclientmanager.IClientManager):
-    def __init__(self):
+    def __init__(self, fileName: str = "creds.json"):
         self.host = "localhost"
         self.port = 8765
         self.logger = logging.getLogger(__name__)
@@ -174,5 +174,5 @@ if __name__ == "__main__":
         print(msg)
 
     client = Client("localhost", 8765)
-    client.connect(client.Request_Feed("mf", "s", [201945003, 301945003]))
+    client.connect(client.Request_Feed("mf", "s", [201950003, 301940003]))
     client.receive_data(display)

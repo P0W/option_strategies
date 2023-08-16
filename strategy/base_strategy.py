@@ -39,6 +39,8 @@ class BaseStrategy(ABC):
         return True if self.executed_orders else False
 
     def get_executed_order(self, code) -> (float, int):  # Avg, Qty
+        if code not in self.executed_orders:
+            return (None, None)
         return (self.executed_orders[code]["rate"], self.executed_orders[code]["qty"])
 
     def get_all_executed_orders(self):
@@ -46,16 +48,24 @@ class BaseStrategy(ABC):
 
     @abstractmethod
     def run(self, ohlcvt: dict, user_data: dict = None):
+        ## Following is done to update the ltp of the scrip in the executed_orders only
         if self.is_in_position():
             ltp = ohlcvt["c"]
             code = ohlcvt["code"]
-            self.executed_orders[code]["ltp"] = ltp
+            if code in self.executed_orders:
+                self.executed_orders[code]["ltp"] = ltp
+
+    def add_executed_orders(self, executed_orders: dict):
+        if not self.executed_orders:
+            self.executed_orders = {}
+        self.executed_orders[executed_orders["ScripCode"]] = executed_orders
 
     @abstractmethod
     def order_placed(self, order: dict, subsList: dict, user_data: dict):
         ## This will be called for "Fully Executed"" only
         ## check if order["ScripCode"] is in self.scrip_codes
         ## if yes, add to self.executed_orders
+        self.logger.info("base strategy | order_placed: %s %s" % ( order, self.scrip_codes))
         if order["ScripCode"] in self.scrip_codes:
             if not self.executed_orders:
                 self.executed_orders = {}

@@ -99,13 +99,6 @@ class MockDataGenerator:
     def unsubscribe(self, scrip_codes):
         self.subscriptions.difference_update(scrip_codes)
 
-    async def generate_data(self):
-        while True:
-            for scrip_code in self.subscriptions:
-                tick_data = self.generate_tick(scrip_code)
-                yield json.dumps([tick_data])
-            await asyncio.sleep(1)
-
 
 class WebSocketServer:
     def __init__(self, host, port):
