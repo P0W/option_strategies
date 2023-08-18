@@ -7,7 +7,8 @@ import datetime
 from common import live_feed_manager
 from clients.iclientmanager import IClientManager
 
-
+## This class is responsible for placing orders, monitoring them and squaring off
+## Currently its too much tied to 5paisa, need to make it generic
 class OrderManager:
     def __init__(self, client: IClientManager, config) -> None:
         self.client = client
@@ -106,6 +107,76 @@ class OrderManager:
                     time.sleep(2)
         self.logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
         self.logger.info("Maximum Loss of :%f INR" % max_loss)
+
+    def aggregate_sl_orders(self, tag:str, sl_factor = 1.65):
+        sl_details = None
+        response = self.client.get_tradebook()["TradeBookDetail"]
+        if tradeBook:
+            tradeBook = response["TradeBookDetail"]
+            response = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])
+            if response:
+                order_status = response["OrdStatusResLst"]
+                slExchOrderIDs = [
+                        int(x["ExchOrderID"])
+                        for x in order_status
+                        if x["PendingQty"] == 0 and x["Status"] == "Fully Executed"
+                    ]
+                for items in tradeBook:
+                    exch_order_id = int(items["ExchOrderID"])
+                    if exch_order_id not in slExchOrderIDs:
+                        continue
+                    scrip_code = items["ScripCode"]
+                    if sl_details is None:
+                        sl_details = {}
+                    if scrip_code not in sl_details:
+                        sl_details[scrip_code] = {'Rate': 0, 'Qty': 0, 'Premium': 0, 'Avg': 0, 'max_loss' : 0, 'sl': 0, 'higher_price': 0}
+                    sl_details[scrip_code]['Rate'] += items['Rate']
+                    sl_details[scrip_code]['Qty'] += items['Qty']
+                    sl_details[scrip_code]['Premium'] += items['Rate'] * items['Qty']
+                    sl_details[scrip_code]['Avg'] = sl_details[scrip_code]['Premium'] / sl_details[scrip_code]['Qty'] if sl_details[scrip_code]['Qty'] != 0 else 0
+                    
+                    sl_details[scrip_code]['sl'] = int(sl_details[scrip_code]['Avg'] * sl_factor)
+                    sl_details[scrip_code]['higher_price']   = sl_details[scrip_code]['sl'] + 0.5
+                    sl_details[scrip_code]['max_loss'] = (sl_details[scrip_code] ['higher_price']  - sl_details[scrip_code]['Avg'] ) * sl_details[scrip_code]['Qty']
+            else:
+                self.logger.warn("No Order Status found for %s" % tag)
+        else:
+            self.logger.warn("No TradeBookDetail found for %s" % tag)
+        return sl_details
+
+    ## Client APIs split the fully executed order into multiple orders, so we need to aggregate them based on scrip code
+    ## This is done to reduce brokerage when sl hits, we want one sl order to be executed, instead of multiple orders
+    def place_short_stop_loss_v2(self, tag: str, retries : int = 0) -> None:
+        while retries < 3:
+            sl_details = self.aggregate_sl_orders(tag)
+            if sl_details is None:
+                self.logger.info("No fully executed Orders found for %s waiting for 2 seconds" % tag)
+                retries += 1
+                time.sleep(2)
+        if sl_details is None:
+            self.logger.error("No fully executed Orders found for %s in %d retries" % (tag, retries))
+            return
+        for scrip_code, detail in sl_details.items():
+            self.logger.info("Placing stop loss for %s" % scrip_code)
+            self.logger.info("Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
+                        % (scrip_code, detail['Qty'], detail['sl'], detail['higher_price']))
+            self.logger.info("USING STOPLOSS TAG:%s" % ("sl" + tag))
+            order_status = self.client.place_order(
+                OrderType="B",
+                Exchange="N",
+                ExchangeType=self.exchangeType,
+                ScripCode=scrip_code,
+                Qty=detail['Qty'],
+                Price=detail['higher_price'],
+                StopLossPrice=detail['sl'],
+                IsIntraday=True,
+                RemoteOrderID="sl" + tag,
+            )
+            if order_status["Message"] == "Success":
+                self.logger.info("Placed for %d" % scrip_code)
+            else:
+                self.logger.error("Failed to place stop loss for %d" % scrip_code)
+            time.sleep(0.5)
 
     def debug_status(self, tag: str) -> None:
         r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
