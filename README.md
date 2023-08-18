@@ -111,11 +111,16 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
   * Add indicators : VWAP, ADX and Supertrend
   * Add UX to see MTM more intutively
   * Move to asyncio, if possible
-  * Update pnl calculate to incorporate any abstract strategy
-* Add adapter to work with any broker's API
-* Check why 5paisa fragments/split single order with multiple lot into multiple orders with smaller lot
+  * ~~Update pnl calculate to incorporate any abstract strategy~~
+* ~~Add adapter to work with any broker's API~~
+* ~~Check why 5paisa fragments/split single order with multiple lot into multiple orders with smaller lot~~
 * Create a DB journal for all trades placed
 * Check how live monitor can work with cloud integrations - Look for suitable resource
+* ~~Add fake signal generator~~
+* Add design doc
+* Implement more clients
+* Add orders to mongodb
+* Add access token in redis 
   
 Thank you for using the Daily Short Strangle/Straddle strategy repository. Clarifications/suggestions are welcomed. 
 
