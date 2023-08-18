@@ -17,7 +17,7 @@ This README provides comprehensive instructions for setting up the environment a
 
 ## Prerequisites
 
-Before you begin, ensure you have the following prerequisites in place:
+Before you begin, ensure you have the following prerequisites in place: (currently works only with 5paisa brokerage account only)
 
 - **5paisa Brokerage Account:** You need an active [**brokerage account**](https://www.5paisa.com/demat-account?ReferralCode=58194614&ReturnUrl=invest-open-account)  with 5paisa to execute trades through their API.
 - **Python 3.9+:** The strategy is built using Python, so you need to have Python version 3.9 or higher installed.
@@ -32,7 +32,7 @@ Before you begin, ensure you have the following prerequisites in place:
     ```
 
 3. Configure API Keys:
-Follow the instructions in the [official 5paisa documentation](https://tradestation.5paisa.com/apidoc) to obtain your API keys. These keys will be used to authenticate and authorize the trading operations.
+Follow the instructions in the [official 5paisa documentation](https://tradestation.5paisa.com/apidoc) to obtain your API keys. These keys will be used to authenticate and authorize the trading operations. One can use the use their TOTP login as well.
 
 4. Create a `creds.json` file:
 Create a file named `creds.json` in the root directory of your project. Populate it with the following fields obtained from the API key setup and additional details as required for 0.6.7 version of py5paisa SDK:
@@ -103,6 +103,15 @@ A simulation using [**algotest.in**](https://algotest.in/) is performed for peri
 
 For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
+## High Level Design (inital thoughts)
+
+![HLD](https://github.com/P0W/option_strategies/blob/main/options_strategies.png)
+
+## How to develop a strategy ?
+<details>
+<summary>Click to expand</summary>
+    @TODO add details
+</details>
 
 ## Future work
 
@@ -117,7 +126,7 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
 * Create a DB journal for all trades placed
 * Check how live monitor can work with cloud integrations - Look for suitable resource
 * ~~Add fake signal generator~~
-* Add design doc
+* ~~Add design doc~~
 * Implement more clients
 * Add orders to mongodb
 * Add access token in redis 
