@@ -110,8 +110,8 @@ class OrderManager:
 
     def aggregate_sl_orders(self, tag:str, sl_factor = 1.65):
         sl_details = None
-        response = self.client.get_tradebook()["TradeBookDetail"]
-        if tradeBook:
+        response = self.client.get_tradebook()
+        if response:
             tradeBook = response["TradeBookDetail"]
             response = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])
             if response:
@@ -153,9 +153,13 @@ class OrderManager:
                 self.logger.info("No fully executed Orders found for %s waiting for 2 seconds" % tag)
                 retries += 1
                 time.sleep(2)
+            else:
+                break
         if sl_details is None:
             self.logger.error("No fully executed Orders found for %s in %d retries" % (tag, retries))
             return
+        max_premium = 0.0
+        max_loss = 0.0
         for scrip_code, detail in sl_details.items():
             self.logger.info("Placing stop loss for %s" % scrip_code)
             self.logger.info("Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
@@ -172,11 +176,16 @@ class OrderManager:
                 IsIntraday=True,
                 RemoteOrderID="sl" + tag,
             )
+            max_premium += detail['Premium']
+            max_loss -= detail['max_loss']
             if order_status["Message"] == "Success":
                 self.logger.info("Placed for %d" % scrip_code)
             else:
                 self.logger.error("Failed to place stop loss for %d" % scrip_code)
             time.sleep(0.5)
+
+        self.logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
+        self.logger.info("Maximum Loss of :%f INR" % max_loss)
 
     def debug_status(self, tag: str) -> None:
         r = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])[
