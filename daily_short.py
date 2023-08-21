@@ -79,11 +79,11 @@ def main(args) -> None:
     if not args.show_strikes_only and args.tag == "":
         if args.strangle:
             om.place_short(strangles, tag)
-            om.place_short_stop_loss(tag)
+            om.place_short_stop_loss_v2(tag)
             monitor_tag = tag
         if args.straddle:
             om.place_short(straddles, tag)
-            om.place_short_stop_loss(tag)
+            om.place_short_stop_loss_v2(tag)
             monitor_tag = tag
     if args.monitor_target > 0.0:
         if args.tag != "":
