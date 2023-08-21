@@ -128,23 +128,24 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
 
 ## Future work
 
+* Implement more the client interface for Zerodha, Fyers, Shoonya, Upstock, etc. - Need help from people having these broker accounts
 * Improve Live monitoring
-  * Filter closed/cancelled orders - Check 5paisa API support it?
+  * ~~Update pnl calculate to incorporate any abstract strategy~~
+  * Filter closed orders - Check 5paisa API support it ? - Sent email to 5paisa team - No response yet
   * Add indicators : VWAP, ADX and Supertrend
   * Add UX to see MTM more intutively
-  * Move to asyncio, if possible
-  * ~~Update pnl calculate to incorporate any abstract strategy~~
+  * Move to asyncio, if possible - likely not possible with 5paisa client
+* Order Manger is currently tied little too much with 5paisa, see if we can abstract details and put it behind individual clients ?
+  * Add orders to mongodb - this should be ideally done from Order Manger ?
+* Check how live monitor can work with cloud integrations - Look for suitable resource
 * ~~Add adapter to work with any broker's API~~
 * ~~Check why 5paisa fragments/split single order with multiple lot into multiple orders with smaller lot~~
-* Create a DB journal for all trades placed
-* Check how live monitor can work with cloud integrations - Look for suitable resource
 * ~~Add fake signal generator~~
 * ~~Add design doc~~
-* Implement more clients
-* Add orders to mongodb
 * ~~Add access token in redis~~
-* ~~Add updates via telegram bot~~ 
-  
+* ~~Add updates via telegram bot~~
+
+
 Thank you for using this repository. Clarifications/suggestions/pull requests/discussions are welcomed. 
 
 Happy trading!
