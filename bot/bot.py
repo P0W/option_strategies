@@ -2,7 +2,17 @@
  
 import logging
 import json
+import sys
 from telegram import __version__ as TG_VER
+
+import os,sys
+current_directory = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory
+parent_directory = os.path.dirname(current_directory)
+# Add the parent directory to sys.path temporarily
+sys.path.append(parent_directory)
+
+from clients.client_5paisa import Client
 
 try:
     from telegram import __version_info__
@@ -37,6 +47,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 with open("../creds.json") as cred_fh:
     cred = json.load(cred_fh)
 API_TOKEN = cred["telegram_token"]
+client = Client(cred_file="../creds.json")
+client.login()
+monitor_tag = sys.argv[1]
 
 def get_update_from_client():
     symbol = "NIFTY 19200 CE AUG 18 2023"
@@ -46,7 +59,6 @@ def get_update_from_client():
     order_placement_update = f"New order placed: {symbol} @ {avg_price} x {quantity}"
     stoploss_update = f"Stoploss placed: {symbol} @ {stoploss}"
     return order_placement_update, stoploss_update
-
 
 async def send_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Replace these with actual updates from client - sample only
@@ -110,7 +122,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(text)
 
     except (IndexError, ValueError):
-        await update.effective_message.reply_text("Usage: /start <interval in seconds>")
+        await update.effective_message.reply_text("Usage: /start <interval in seconds> <tag>")
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -143,10 +155,15 @@ async def handle_invalid_button(
 
 async def send_pnl_update(context: ContextTypes.DEFAULT_TYPE) -> None:
     # Replace with actual PnL calculations from client
-    overall_pnl = "3582.00 INR"
-    individual_pnl = "NIFTY 19200 CE AUG 18 2023: -618.00 INR\nNIFTY 19200 PE AUG 18 2023: 4200.00 INR"
     job = context.job
-    pnl_message = f"Overall PnL: {overall_pnl}\nIndividual PnLs:\n{individual_pnl}"
+    positions = client.get_pnl_summary(monitor_tag)
+    total = 0.0
+    individual_pnl = ''
+    if positions:
+        for item in positions:
+            individual_pnl += "%s : %.2f\n" % (item["ScripName"], item["Pnl"])
+            total += item["Pnl"]
+    pnl_message = f"Overall PnL: {total}\nIndividual PnLs:\n{individual_pnl}"
     await context.bot.send_message(job.chat_id, text=pnl_message)
 
 
