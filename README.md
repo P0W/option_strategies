@@ -6,7 +6,10 @@ Short strangles historically has given good returns, with high probablity of pro
 The focus here is HIGH PROBABILITY OF PROFIT. 
 
 On my experience and some backesting on stockmock and algotest.in platforms, if we short strikes near to 1 standard deviation OTM, there's a high probability of profit.
-And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 55% from entry price on both legs.
+And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 65% from entry price on both legs.
+On expiry we can do same with straddle (short ATM PE and CE), with 65% stop loss on both legs.
+
+Trailing stop loss also reduces loss days and can be tried out. Do check out the 
 
 We can also place a **_live monitor_** feed to monitor MTM on both legs and sqaure off if either a provided MTM SL is hit or a provided  MTM target is achieved for the day.
 
@@ -24,8 +27,11 @@ Before you begin, ensure you have the following prerequisites in place: (current
 - **5paisa Python SDK:** You must install the `py5paisa` Python package, which serves as the SDK for interacting with the 5paisa API.
 
 ## Installation and Setup
-
-1. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
+1. Create a virtual environment and activate it, you may use conda as well
+   ```sh
+   python -m venv \path\to\myenv
+   ```
+2. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
 
     ```sh
    pip install -r requirements.txt
@@ -47,9 +53,16 @@ Create a file named `creds.json` in the root directory of your project. Populate
    "ENCRYPTION_KEY": "YOUR_ENCRYPTION_KEY"
    "email": "YOUR_LOGIN_EMAIL",
    "passwd": "YOUR_LOGIN_PASSWORD",
-   "dob": "YOUR_DOB"
+   "dob": "YOUR_DOB",
+   "totp_secret": "YOUR_TOTP_SECRET", 
+   "pin": "YOUR_PIN",
+   "clientcode": "YOUR_CLIENT_CODE",
+   "telegram_token":"TELEGRAM_BOT_TOKEN" 
 }
 ```
+Note: 
+-  _`totp_secret` Can be obtained very first time you add TOTP based login to your authenticator app_
+-  _`telegram_token` Only if interested for telegram updates for MTM and order updates_
 
 ## Usage
 
@@ -103,7 +116,7 @@ A simulation using [**algotest.in**](https://algotest.in/) is performed for peri
 
 For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
-## High Level Design (inital thoughts)
+## High Level Design
 
 ![HLD](https://github.com/P0W/option_strategies/blob/main/options_strategies.png)
 
@@ -129,8 +142,9 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
 * ~~Add design doc~~
 * Implement more clients
 * Add orders to mongodb
-* Add access token in redis 
+* ~~Add access token in redis~~
+* ~~Add updates via telegram bot~~ 
   
-Thank you for using the Daily Short Strangle/Straddle strategy repository. Clarifications/suggestions are welcomed. 
+Thank you for using this repository. Clarifications/suggestions/pull requests/discussions are welcomed. 
 
 Happy trading!
