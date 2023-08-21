@@ -8,9 +8,7 @@ import argparse
 
 from common import strikes_manager
 from common import order_manager
-import utils
 from clients.client_5paisa import Client as Client5Paisa
-
 
 def main(args) -> None:
     logger = logging.getLogger(__name__)
