@@ -1,5 +1,6 @@
 ## Author: Prashant Srivastava
 
+import datetime
 import json
 from py5paisa import FivePaisaClient
 import pyotp
@@ -117,9 +118,13 @@ class Client(iclientmanager.IClientManager):
         return None
 
     ## @override
-    def get_pnl_summary(self, tag: str):
+    def get_pnl_summary(self, tag: str = None):
+        if not tag:
+            tags = self.get_todays_tags()
+        else:
+            tags = [tag]
         order_status = self._client.fetch_order_status(
-            [{"Exch": "N", "RemoteOrderID": tag}]
+            [{"Exch": "N", "RemoteOrderID": tag} for tag in tags]
         )["OrdStatusResLst"]
         ExchOrderIDs = [
             int(x["ExchOrderID"])
@@ -163,3 +168,26 @@ class Client(iclientmanager.IClientManager):
                 * (1 if order["BuySell"] == "B" else -1)
             )
         return matching_orders
+
+    ## @override
+    def get_todays_tags(self):
+        order_book = self._client.order_book()
+        tags = []
+        for order in order_book:
+            if "RemoteOrderID" not in order:
+                print(order)
+            try:
+                timestamp_str = order["RemoteOrderID"][
+                    5:
+                ]  # Extract the timestamp part from the text
+                # Convert the timestamp to a datetime object
+                timestamp_unix = int(timestamp_str)
+                timestamp_datetime = datetime.datetime.utcfromtimestamp(timestamp_unix)
+                # Get the current date
+                current_date = datetime.date.today()
+                if timestamp_datetime.date() == current_date:
+                    if order["RemoteOrderID"] not in tags:
+                        tags.append(order["RemoteOrderID"])
+            except Exception as e:
+                pass
+        return tags

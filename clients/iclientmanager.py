@@ -95,5 +95,9 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_pnl_summary(self, tag: str):
+    def get_pnl_summary(self, tag: str = None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_todays_tags(self):
         raise NotImplementedError
