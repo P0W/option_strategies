@@ -93,3 +93,7 @@ class IClientManager(ABC):
     @abstractmethod
     def send_data(self, open_: any):
         raise NotImplementedError
+
+    @abstractmethod
+    def get_pnl_summary(self, tag: str):
+        raise NotImplementedError

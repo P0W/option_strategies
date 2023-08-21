@@ -3,23 +3,50 @@
 import json
 from py5paisa import FivePaisaClient
 import pyotp
+import redis
 from . import iclientmanager
 
 
 class Client(iclientmanager.IClientManager):
+    ACCESS_TOKEN_KEY = "access_token"
+
     ## implement all the abstract methods here
     def __init__(self, cred_file: str = "creds.json"):
         with open(cred_file) as cred_fh:
             self.cred = json.load(cred_fh)
         self._client = None
 
-    ## @override
+    ## @override - @TODO: Move redis to basse class
     def login(self):
         self._client = FivePaisaClient(self.cred)
         totp = pyotp.TOTP(self.cred["totp_secret"])
         self._client.get_totp_session(
             self.cred["clientcode"], totp.now(), self.cred["pin"]
         )
+        self._client = FivePaisaClient(self.cred)
+        try:
+            redis_client = redis.Redis(host="127.0.0.1")
+            access_token = redis_client.get(Client.ACCESS_TOKEN_KEY)
+            if access_token:
+                access_token = access_token.decode("utf-8")
+                ## 5paisa hack, no way to set acess token directly using sdk API
+                self._client.client_code = self.cred["clientcode"]
+                self._client.access_token = access_token
+                self._client.Jwt_token = access_token
+            else:
+                raise Exception("No access token found")
+        except Exception as e:
+            print("No access token found in cache, logging in")
+            totp = pyotp.TOTP(self.cred["totp_secret"])
+            access_token = self._client.get_totp_session(
+                self.cred["clientcode"], totp.now(), self.cred["pin"]
+            )
+            try:
+                redis_client.set(
+                    Client.ACCESS_TOKEN_KEY, access_token, ex=2 * 60 * 60
+                )  ## 2 hours expiry
+            except Exception as e:
+                pass
         return self
 
     ## @override
@@ -88,3 +115,51 @@ class Client(iclientmanager.IClientManager):
         if self._client.ws:
             return self._client.ws.send(json.dumps(wspayload))
         return None
+
+    ## @override
+    def get_pnl_summary(self, tag: str):
+        order_status = self._client.fetch_order_status(
+            [{"Exch": "N", "RemoteOrderID": tag}]
+        )["OrdStatusResLst"]
+        ExchOrderIDs = [
+            int(x["ExchOrderID"])
+            for x in order_status
+            if x["PendingQty"] == 0 and x["Status"] == "Fully Executed"
+        ]
+        tradeBook = self._client.get_tradebook()["TradeBookDetail"]
+        matching_orders = [
+            {
+                "ExchOrderID": trade["ExchOrderID"],
+                "ScripCode": trade["ScripCode"],
+                "Rate": trade["Rate"],
+                "Qty": trade["Qty"],
+                "BuySell": trade["BuySell"],
+                "ScripName": trade["ScripName"],
+                "LastTradedPrice": None,
+                "Pnl": None,
+            }
+            for trade in tradeBook
+            if int(trade["ExchOrderID"]) in ExchOrderIDs
+        ]
+
+        request_prices = list(
+            map(
+                lambda order: {
+                    "Exchange": "N",
+                    "ExchangeType": "D",
+                    "ScripCode": order["ScripCode"],
+                },
+                matching_orders,
+            )
+        )
+
+        depth = self._client.fetch_market_depth(request_prices)["Data"]
+        ltp_dict = {dep["ScripCode"]: dep["LastTradedPrice"] for dep in depth}
+        for order in matching_orders:
+            order["LastTradedPrice"] = ltp_dict[order["ScripCode"]]
+            order["Pnl"] = (
+                (order["LastTradedPrice"] - order["Rate"])
+                * order["Qty"]
+                * (1 if order["BuySell"] == "B" else -1)
+            )
+        return matching_orders

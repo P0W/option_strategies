@@ -49,12 +49,15 @@ def main(args) -> None:
     client.login()
     sm = strikes_manager.StrikesManager(client=client, config=config)
     om = order_manager.OrderManager(client=client, config=config)
-    if args.tag != "" and args.monitor_target <= 0.0:
+    if args.tag != "" and args.monitor_target <= 0.0 and not args.pnl:
         om.debug_status(tag=args.tag)
         return
     elif args.pnl:
-        mtom = om.pnl()
-        logger.info("MTM = %.2f" % mtom)
+        if args.tag != "":
+            mtom = om.pnl(args.tag)
+            logger.info("MTM = %.2f" % mtom)
+        else:
+            logger.info("Please provide a tag to show pnl")
         return
 
     logger.info("USING INDEX :%s" % config["INDEX_OPTION"])

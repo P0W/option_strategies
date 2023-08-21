@@ -7,6 +7,7 @@ import datetime
 from common import live_feed_manager
 from clients.iclientmanager import IClientManager
 
+
 ## This class is responsible for placing orders, monitoring them and squaring off
 ## Currently its too much tied to 5paisa, need to make it generic
 class OrderManager:
@@ -108,19 +109,21 @@ class OrderManager:
         self.logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
         self.logger.info("Maximum Loss of :%f INR" % max_loss)
 
-    def aggregate_sl_orders(self, tag:str, sl_factor = 1.65):
+    def aggregate_sl_orders(self, tag: str, sl_factor=1.65):
         sl_details = None
         response = self.client.get_tradebook()
         if response:
             tradeBook = response["TradeBookDetail"]
-            response = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": tag}])
+            response = self.client.fetch_order_status(
+                [{"Exch": "N", "RemoteOrderID": tag}]
+            )
             if response:
                 order_status = response["OrdStatusResLst"]
                 slExchOrderIDs = [
-                        int(x["ExchOrderID"])
-                        for x in order_status
-                        if x["PendingQty"] == 0 and x["Status"] == "Fully Executed"
-                    ]
+                    int(x["ExchOrderID"])
+                    for x in order_status
+                    if x["PendingQty"] == 0 and x["Status"] == "Fully Executed"
+                ]
                 for items in tradeBook:
                     exch_order_id = int(items["ExchOrderID"])
                     if exch_order_id not in slExchOrderIDs:
@@ -129,15 +132,35 @@ class OrderManager:
                     if sl_details is None:
                         sl_details = {}
                     if scrip_code not in sl_details:
-                        sl_details[scrip_code] = {'Rate': 0, 'Qty': 0, 'Premium': 0, 'Avg': 0, 'max_loss' : 0, 'sl': 0, 'higher_price': 0}
-                    sl_details[scrip_code]['Rate'] += items['Rate']
-                    sl_details[scrip_code]['Qty'] += items['Qty']
-                    sl_details[scrip_code]['Premium'] += items['Rate'] * items['Qty']
-                    sl_details[scrip_code]['Avg'] = sl_details[scrip_code]['Premium'] / sl_details[scrip_code]['Qty'] if sl_details[scrip_code]['Qty'] != 0 else 0
-                    
-                    sl_details[scrip_code]['sl'] = int(sl_details[scrip_code]['Avg'] * sl_factor)
-                    sl_details[scrip_code]['higher_price']   = sl_details[scrip_code]['sl'] + 0.5
-                    sl_details[scrip_code]['max_loss'] = (sl_details[scrip_code] ['higher_price']  - sl_details[scrip_code]['Avg'] ) * sl_details[scrip_code]['Qty']
+                        sl_details[scrip_code] = {
+                            "Rate": 0,
+                            "Qty": 0,
+                            "Premium": 0,
+                            "Avg": 0,
+                            "max_loss": 0,
+                            "sl": 0,
+                            "higher_price": 0,
+                        }
+                    sl_details[scrip_code]["Rate"] += items["Rate"]
+                    sl_details[scrip_code]["Qty"] += items["Qty"]
+                    sl_details[scrip_code]["Premium"] += items["Rate"] * items["Qty"]
+                    sl_details[scrip_code]["Avg"] = (
+                        sl_details[scrip_code]["Premium"]
+                        / sl_details[scrip_code]["Qty"]
+                        if sl_details[scrip_code]["Qty"] != 0
+                        else 0
+                    )
+
+                    sl_details[scrip_code]["sl"] = int(
+                        sl_details[scrip_code]["Avg"] * sl_factor
+                    )
+                    sl_details[scrip_code]["higher_price"] = (
+                        sl_details[scrip_code]["sl"] + 0.5
+                    )
+                    sl_details[scrip_code]["max_loss"] = (
+                        sl_details[scrip_code]["higher_price"]
+                        - sl_details[scrip_code]["Avg"]
+                    ) * sl_details[scrip_code]["Qty"]
             else:
                 self.logger.warn("No Order Status found for %s" % tag)
         else:
@@ -146,38 +169,44 @@ class OrderManager:
 
     ## Client APIs split the fully executed order into multiple orders, so we need to aggregate them based on scrip code
     ## This is done to reduce brokerage when sl hits, we want one sl order to be executed, instead of multiple orders
-    def place_short_stop_loss_v2(self, tag: str, retries : int = 0) -> None:
+    def place_short_stop_loss_v2(self, tag: str, retries: int = 0) -> None:
         while retries < 3:
             sl_details = self.aggregate_sl_orders(tag)
             if sl_details is None:
-                self.logger.info("No fully executed Orders found for %s waiting for 2 seconds" % tag)
+                self.logger.info(
+                    "No fully executed Orders found for %s waiting for 2 seconds" % tag
+                )
                 retries += 1
                 time.sleep(2)
             else:
                 break
         if sl_details is None:
-            self.logger.error("No fully executed Orders found for %s in %d retries" % (tag, retries))
+            self.logger.error(
+                "No fully executed Orders found for %s in %d retries" % (tag, retries)
+            )
             return
         max_premium = 0.0
         max_loss = 0.0
         for scrip_code, detail in sl_details.items():
             self.logger.info("Placing stop loss for %s" % scrip_code)
-            self.logger.info("Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
-                        % (scrip_code, detail['Qty'], detail['sl'], detail['higher_price']))
+            self.logger.info(
+                "Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
+                % (scrip_code, detail["Qty"], detail["sl"], detail["higher_price"])
+            )
             self.logger.info("USING STOPLOSS TAG:%s" % ("sl" + tag))
             order_status = self.client.place_order(
                 OrderType="B",
                 Exchange="N",
                 ExchangeType=self.exchangeType,
                 ScripCode=scrip_code,
-                Qty=detail['Qty'],
-                Price=detail['higher_price'],
-                StopLossPrice=detail['sl'],
+                Qty=detail["Qty"],
+                Price=detail["higher_price"],
+                StopLossPrice=detail["sl"],
                 IsIntraday=True,
                 RemoteOrderID="sl" + tag,
             )
-            max_premium += detail['Premium']
-            max_loss -= detail['max_loss']
+            max_premium += detail["Premium"]
+            max_loss -= detail["max_loss"]
             if order_status["Message"] == "Success":
                 self.logger.info("Placed for %d" % scrip_code)
             else:
@@ -197,14 +226,14 @@ class OrderManager:
         print("Order Book", json.dumps(self.client.order_book(), indent=2))
         # print("Positions", print(json.dumps(self.client.positions(), indent=2)))
 
-    def pnl(self) -> float:
-        positions = self.client.positions()
-
-        mtom = 0.0
+    def pnl(self, tag: str) -> float:
+        positions = self.client.get_pnl_summary(tag)
+        total = 0.0
         if positions:
             for item in positions:
-                mtom += item["MTOM"]
-        return mtom
+                self.logger.info("%s : %.2f" % (item["ScripName"], item["Pnl"]))
+                total += item["Pnl"]
+        return total
 
     @DeprecationWarning
     def cancel_pendings(self, tag: str) -> None:
@@ -220,9 +249,9 @@ class OrderManager:
                 self.client.cancel_order(exch_order_id=order["ExchOrderID"])
 
     def get_sl_pending_orders(self, slTag: str):
-        order_status = self.client.fetch_order_status([{"Exch": "N", "RemoteOrderID": slTag}])[
-            "OrdStatusResLst"
-        ]
+        order_status = self.client.fetch_order_status(
+            [{"Exch": "N", "RemoteOrderID": slTag}]
+        )["OrdStatusResLst"]
         ## get all ExchOrderID from r where "PendingQty" is not 0, Status is "Pending"
         slExchOrderIDs = [
             {"ExchOrderID": "%s" % x["ExchOrderID"]}

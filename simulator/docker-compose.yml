@@ -2,7 +2,9 @@ version: '3'
 services:
   minimal-redis:
     image: redis:alpine
+    restart: always
     container_name: minimal-redis
+    command: redis-server --save 20 1 --loglevel warning --logfile /dev/null
     ports:
       - "6379:6379"
 
