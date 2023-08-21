@@ -2,13 +2,13 @@
 # The Python Worker is managed by Azure Functions platform
 # Manually managing azure-functions-worker may cause unexpected issues
 
-azure-functions
-requests
-py5paisa
-black
-pyotp
-websockets
-pymongo
-python-telegram-bot
-python-telegram-bot[job-queue]
-redis
+azure-functions==1.17.0
+requests==2.31.0
+py5paisa==0.7.2
+black==23.7.0
+pyotp==2.9.0
+websockets==11.0.3
+pymongo==4.4.1
+python-telegram-bot==20.4
+python-telegram-bot[job-queue]==20.4
+redis==5.0.0
