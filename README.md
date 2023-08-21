@@ -1,4 +1,4 @@
-
+# Option Strategies
 
 
 Short strangles historically has given good returns, with high probablity of profit. However the risk is high if naked strangles/staddle are placed.
