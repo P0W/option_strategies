@@ -1,9 +1,11 @@
 import json
 import logging
 import time
-from . import iclientmanager
+
 import websocket
 from pymongo import MongoClient
+
+from . import iclientmanager
 
 
 class Client(iclientmanager.IClientManager):

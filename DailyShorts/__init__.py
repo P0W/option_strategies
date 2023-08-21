@@ -1,12 +1,11 @@
 ## Author : Prashant Srivastava
 ## Last Modified Date  : March 19th, 2023
-
+import argparse
 import datetime
 import logging
 
 import azure.functions as func
 
-import argparse
 import daily_short
 
 daily_short.configure_logger("DEBUG")

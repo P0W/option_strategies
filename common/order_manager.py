@@ -1,11 +1,11 @@
 ## Author : Prashant Srivastava
-
+import datetime
+import json
 import logging
 import time
-import json
-import datetime
-from common import live_feed_manager
+
 from clients.iclientmanager import IClientManager
+from common import live_feed_manager
 
 
 ## This class is responsible for placing orders, monitoring them and squaring off

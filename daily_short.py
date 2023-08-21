@@ -1,14 +1,14 @@
 ## Author : Prashant Srivastava
-
-import re
-import datetime
-import logging
-import json
 import argparse
+import datetime
+import json
+import logging
+import re
 
-from common import strikes_manager
-from common import order_manager
 from clients.client_5paisa import Client as Client5Paisa
+from common import order_manager
+from common import strikes_manager
+
 
 def main(args) -> None:
     logger = logging.getLogger(__name__)

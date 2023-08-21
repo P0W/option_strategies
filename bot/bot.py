@@ -1,8 +1,9 @@
 # Author: Prashant Srivastava
-
-import logging
 import json
-import os, sys
+import logging
+import os
+import sys
+
 from telegram import __version__ as TG_VER
 
 # Get the current directory

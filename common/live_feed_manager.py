@@ -1,10 +1,11 @@
 ## Author : Prashant Srivastava
-
-import logging
 import json
+import logging
 import queue
 import threading
-from typing import List, Callable
+from typing import Callable
+from typing import List
+
 from clients.iclientmanager import IClientManager
 
 
