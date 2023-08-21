@@ -24,6 +24,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## NIFTY_INDEX is the scrip code for NIFTY index
     NIFTY_INDEX = 999920000
     BANKNIFTY_INDEX = 999920005
+    INDIA_VIX = 999920019
 
     ## Constructor
     def __init__(
@@ -155,7 +156,6 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     "pnl": 0.0,
                 }
             )
-
 
     ## @override
     ## Stop the feed manager. This is not required as the feed manager will

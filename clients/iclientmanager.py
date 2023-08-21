@@ -101,3 +101,7 @@ class IClientManager(ABC):
     @abstractmethod
     def get_todays_tags(self):
         raise NotImplementedError
+
+    @abstractmethod
+    def fetch_market_depth(self, req_list: list):
+        raise NotImplementedError

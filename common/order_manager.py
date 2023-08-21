@@ -53,62 +53,6 @@ class OrderManager:
                 self.logger.debug("%s_done" % item)
             time.sleep(2)
 
-    def place_short_stop_loss(self, tag: str) -> None:
-        self.logger.info("Fetching order status for %s" % tag)
-        id = []
-        while len(id) != 2:
-            order_status = self.client.fetch_order_status(
-                [{"Exch": "N", "RemoteOrderID": tag}]
-            )["OrdStatusResLst"]
-            for order in order_status:
-                eoid = order["ExchOrderID"]
-                self.logger.info("ExchOrderID: %d" % eoid)
-                if eoid != "":
-                    id.append(eoid)
-            self.logger.info("Waiting for order execution")
-            time.sleep(2)
-
-        self.logger.info("Fetching TradeBookDetail for %s" % tag)
-        trdbook = self.client.get_tradebook()["TradeBookDetail"]
-        max_premium = 0.0
-        max_loss = 0.0
-        for eoid in id:
-            for trade in trdbook:
-                if eoid == int(trade["ExchOrderID"]):
-                    scrip = trade["ScripCode"]
-                    self.logger.debug(
-                        "Matched for ExchOrderID: %d for Scrip: %d. Placing Stop Loss at %f times"
-                        % (eoid, scrip, self.config["SL_FACTOR"])
-                    )
-                    qty = trade["Qty"]
-                    avgprice = trade["Rate"]
-                    max_premium += avgprice * qty
-
-                    sl = int(avgprice * self.config["SL_FACTOR"])
-                    higher_price = sl + 0.5
-                    max_loss -= (higher_price - avgprice) * qty
-                    self.logger.debug(
-                        "Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f"
-                        % (scrip, qty, sl, higher_price)
-                    )
-                    self.logger.debug("USING STOPLOSS TAG:%s" % ("sl" + tag))
-                    order_status = self.client.place_order(
-                        OrderType="B",
-                        Exchange="N",
-                        ExchangeType=self.exchangeType,
-                        ScripCode=scrip,
-                        Qty=qty,
-                        Price=higher_price,
-                        StopLossPrice=sl,
-                        IsIntraday=True,
-                        RemoteOrderID="sl" + tag,
-                    )
-                    if order_status["Message"] == "Success":
-                        self.logger.info("Placed for %d" % scrip)
-                    time.sleep(2)
-        self.logger.info("Collecting Maximum Premium of :%f INR" % max_premium)
-        self.logger.info("Maximum Loss of :%f INR" % max_loss)
-
     def aggregate_sl_orders(self, tag: str, sl_factor=1.65):
         sl_details = None
         response = self.client.get_tradebook()
@@ -234,19 +178,6 @@ class OrderManager:
                 self.logger.info("%s : %.2f" % (item["ScripName"], item["Pnl"]))
                 total += item["Pnl"]
         return total
-
-    @DeprecationWarning
-    def cancel_pendings(self, tag: str) -> None:
-        orderbook = self.client.order_book()
-        pending_orders = list(
-            filter(lambda x: x["RemoteOrderID"] == "sl" + tag, orderbook)
-        )
-        for order in pending_orders:
-            if order["OrderStatus"] == "Pending":
-                self.logger.info(
-                    "Cancelled Exchange Order ID %d" % order["ExchOrderID"]
-                )
-                self.client.cancel_order(exch_order_id=order["ExchOrderID"])
 
     def get_sl_pending_orders(self, slTag: str):
         order_status = self.client.fetch_order_status(

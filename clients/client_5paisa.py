@@ -158,7 +158,7 @@ class Client(iclientmanager.IClientManager):
             )
         )
 
-        depth = self._client.fetch_market_depth(request_prices)["Data"]
+        depth = self.fetch_market_depth(request_prices)["Data"]
         ltp_dict = {dep["ScripCode"]: dep["LastTradedPrice"] for dep in depth}
         for order in matching_orders:
             order["LastTradedPrice"] = ltp_dict[order["ScripCode"]]
@@ -191,3 +191,7 @@ class Client(iclientmanager.IClientManager):
             except Exception as e:
                 pass
         return tags
+
+    ## @override
+    def fetch_market_depth(self, req_list: list):
+        return self._client.fetch_market_depth(req_list)
