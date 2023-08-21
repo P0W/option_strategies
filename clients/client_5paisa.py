@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import re
 from py5paisa import FivePaisaClient
 import pyotp
 import redis
@@ -19,11 +20,6 @@ class Client(iclientmanager.IClientManager):
 
     ## @override - @TODO: Move redis to basse class
     def login(self):
-        self._client = FivePaisaClient(self.cred)
-        totp = pyotp.TOTP(self.cred["totp_secret"])
-        self._client.get_totp_session(
-            self.cred["clientcode"], totp.now(), self.cred["pin"]
-        )
         self._client = FivePaisaClient(self.cred)
         try:
             redis_client = redis.Redis(host="127.0.0.1")
@@ -177,17 +173,17 @@ class Client(iclientmanager.IClientManager):
             if "RemoteOrderID" not in order:
                 print(order)
             try:
-                timestamp_str = order["RemoteOrderID"][
-                    5:
-                ]  # Extract the timestamp part from the text
-                # Convert the timestamp to a datetime object
-                timestamp_unix = int(timestamp_str)
-                timestamp_datetime = datetime.datetime.utcfromtimestamp(timestamp_unix)
-                # Get the current date
-                current_date = datetime.date.today()
-                if timestamp_datetime.date() == current_date:
-                    if order["RemoteOrderID"] not in tags:
-                        tags.append(order["RemoteOrderID"])
+                st = re.search("\w(\d+)$", order["RemoteOrderID"])
+                if st:
+                    timestamp_str = int(st.group(1))  # Extract the timestamp part from the text
+                    # Convert the timestamp to a datetime object
+                    timestamp_unix = int(timestamp_str)
+                    timestamp_datetime = datetime.datetime.utcfromtimestamp(timestamp_unix)
+                    # Get the current date
+                    current_date = datetime.date.today()
+                    if timestamp_datetime.date() == current_date:
+                        if order["RemoteOrderID"] not in tags:
+                            tags.append(order["RemoteOrderID"])
             except Exception as e:
                 pass
         return tags

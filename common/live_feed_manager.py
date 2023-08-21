@@ -85,11 +85,9 @@ class LiveFeedManager:
 
             def process_msg(msg: dict):
                 if "Status" in msg:
-                    ## Example :{"ReqType":"P","ClientCode":"58194614","Exch":"N","ExchType":"D","ScripCode":47879,"Symbol":"NIFTY 10 Aug 2023 CE 19650.00","Series":"","BrokerOrderID":924914129,"ExchOrderID":"1000000021635748","ExchOrderTime":"2023-08-09 10:14:01","BuySell":"B","Qty":50,"Price":13.25,"ReqStatus":0,"Status":"Placed","OrderRequestorCode":"58194614","AtMarket":"N","Product":"I","WithSL":"N","SLTriggerRate":0,"DisclosedQty":0,"PendingQty":50,"TradedQty":0,"RemoteOrderId":"581946142023080910140176"}
                     self.order_queue.put(msg)
                 elif "LastRate" in msg:
                     ## convert the json message to a list of dict only ohlcv values
-                    ## Example :[{'Exch': 'N', 'ExchType': 'D', 'Token': 50474, 'LastRate': 132.25, 'LastQty': 600, 'TotalQty': 6461680, 'High': 132.4, 'Low': 75.75, 'OpenRate': 85.1, 'PClose': 78.25, 'AvgRate': 109.84, 'Time': 16401, 'BidQty': 40, 'BidRate': 131.95, 'OffQty': 880, 'OffRate': 132.3, 'TBidQ': 131720, 'TOffQ': 143160, 'TickDt': '/Date(1691557401000)/', 'ChgPcnt': 69.00958}]
                     self.callback_queue.put(
                         {
                             "o": msg["OpenRate"],
