@@ -1,5 +1,5 @@
-## Author : Prashant Srivastava
-## Last Modified Date  : Dec 25th, 2022
+# Author : Prashant Srivastava
+# Last Modified Date  : Dec 25th, 2022
 import datetime
 import logging
 import math
@@ -20,13 +20,13 @@ class StrikesManager:
     def get_current_expiry(self, index: str) -> int:
         self.logger.debug("Pulling the current expiry timestamp")
         all_nifty_expiry = self.client.get_expiry(exch="N", symbol=index)["Expiry"]
-        date_pattern = re.compile("/Date\((\d+).+?\)/")
+        date_pattern = re.compile("/Date\\((\\d+).+?\\)/")
         min_diff = math.inf
         this_expiry = StrikesManager.TODAY_TIMESTAMP
         for expiry in all_nifty_expiry:
-            st = date_pattern.search(expiry["ExpiryDate"])
-            if st:
-                timestamp = int(st.group(1))
+            search_text = date_pattern.search(expiry["ExpiryDate"])
+            if search_text:
+                timestamp = int(search_text.group(1))
                 diff = timestamp - StrikesManager.TODAY_TIMESTAMP
                 if min_diff > diff:
                     min_diff = diff
@@ -54,14 +54,14 @@ class StrikesManager:
 
         min_diff = math.inf
         atm = 0
-        for k, v in ce_strikes.items():
-            if k in pe_strikes:
-                diff = abs(v["ltp"] - pe_strikes[k]["ltp"])
+        for key, value in ce_strikes.items():
+            if key in pe_strikes:
+                diff = abs(value["ltp"] - pe_strikes[key]["ltp"])
                 if min_diff > diff:
                     min_diff = diff
-                    atm = k
+                    atm = key
 
-        self.logger.debug("Minimum CE/PE Difference = %f" % min_diff)
+        self.logger.debug("Minimum CE/PE Difference = %f", min_diff)
         return {
             "ce_code": ce_strikes[atm]["code"],
             "ce_ltp": ce_strikes[atm]["ltp"],
@@ -78,8 +78,9 @@ class StrikesManager:
         if "CLOSEST_PREMINUM" in self.config:
             closest_price_thresh = float(self.config["CLOSEST_PREMINUM"])
             self.logger.debug(
-                "Finding closest strikes to premium %f from expiry timestamp %d"
-                % (closest_price_thresh, this_expiry)
+                "Finding closest strikes to premium %f from expiry timestamp %d",
+                closest_price_thresh,
+                this_expiry,
             )
         contracts = self.client.get_option_chain(
             exch="N", symbol=index, expire=this_expiry
@@ -111,8 +112,8 @@ class StrikesManager:
                 pe_ltp = ltp
                 pe_name = name
 
-        self.logger.debug("Minimum CE Difference = %f" % min_ce_diff)
-        self.logger.debug("Minimum PE Difference = %f" % min_pe_diff)
+        self.logger.debug("Minimum CE Difference = %f", min_ce_diff)
+        self.logger.debug("Minimum PE Difference = %f", min_pe_diff)
         return {
             "ce_code": ce_code,
             "ce_ltp": ce_ltp,

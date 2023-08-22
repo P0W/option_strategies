@@ -115,7 +115,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                         for code in all_executed_orders
                     },
                 )
-                self.order_manager.squareoffSL(tag=self.tag)
+                self.order_manager.squareoff_sl_order(tag=self.tag)
                 ## Unsubscribe from the strikes
                 self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
                 self.feed_manager.stop()

@@ -4,7 +4,18 @@ import logging
 import os
 import sys
 
+from clients.client_5paisa import Client
 from telegram import __version__ as TG_VER
+from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import ApplicationBuilder
+from telegram.ext import CallbackQueryHandler
+from telegram.ext import CommandHandler
+from telegram.ext import ContextTypes
+from telegram.ext import filters
+from telegram.ext import InvalidCallbackData
+from telegram.ext import MessageHandler
 
 # Get the current directory
 current_directory = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +24,6 @@ parent_directory = os.path.dirname(current_directory)
 # Add the parent directory to sys.path temporarily
 sys.path.append(parent_directory)
 
-from clients.client_5paisa import Client
 
 try:
     from telegram import __version_info__
@@ -27,25 +37,16 @@ if __version_info__ < (20, 0, 0, "alpha", 5):
         f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
     )
 
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import (
-    ApplicationBuilder,
-    ContextTypes,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    InvalidCallbackData,
-    filters,
-)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-# set higher logging level for httpx to avoid all GET and POST requests being logged
+# set higher logging level for httpx to avoid all GET and POST requests
+# being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-## read API_TOKEN from file creds.json
-with open("../creds.json") as cred_fh:
+# read API_TOKEN from file creds.json
+with open("../creds.json", encoding="utf8") as cred_fh:
     cred = json.load(cred_fh)
 API_TOKEN = cred["telegram_token"]
 client = Client(cred_file="../creds.json")
@@ -58,8 +59,8 @@ def get_update_from_client():
     info = ""
     for item in order_book:
         if item["RemoteOrderID"] in tags:
-            ## Format like this: BUY 1 lot of NIFTY 12000 PE @ 100 x 75
-            buysell = "Sold" if  item["BuySell"] == "S" else "Brought"
+            # Format like this: BUY 1 lot of NIFTY 12000 PE @ 100 x 75
+            buysell = "Sold" if item["BuySell"] == "S" else "Brought"
             name = item["ScripName"]
             avg_price = round(item["AveragePrice"], 2)
             quantity = item["Qty"]
@@ -67,7 +68,7 @@ def get_update_from_client():
     return info
 
 
-async def send_updates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def send_updates(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     # Replace these with actual updates from client - sample only
     info = get_update_from_client()
     overall_pnl_button = InlineKeyboardButton(
@@ -92,7 +93,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await query.answer(text="Fetching overall PnL...")
         # Replace with actual overall PnL calculation and send the result
         await context.bot.send_message(
-            chat_id=query.message.chat_id, text="Overall PnL: %.2f INR " % total_pnl
+            chat_id=query.message.chat_id, text=f"Overall PnL: {total_pnl:.2f} INR "
         )
     elif query.data == "individual_pnl":
         _, individual_pnl = get_pnl_text()
@@ -100,7 +101,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Replace with actual individual PnL calculation and send the result
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="Individual Legs\n%s" % individual_pnl,
+            text=f"Individual Legs\n{individual_pnl}",
         )
 
 
@@ -109,7 +110,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id=update.effective_chat.id,
         text="Welcome to Option Strategies Algo Bot!",
     )
-    """Add a job to the queue."""
     chat_id = update.effective_message.chat_id
     try:
         interval_duration = float(context.args[0])
@@ -125,7 +125,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             chat_id=chat_id,
             name=str(chat_id),
         )
-        text = "Pnl Updates subscribed for {} seconds.".format(interval_duration)
+        text = f"Pnl Updates subscribed for {interval_duration:.1f} seconds."
         if job_removed:
             text += " Old one was removed."
         await update.effective_message.reply_text(text)
@@ -156,7 +156,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_invalid_button(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    update: Update, _context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     await update.callback_query.answer()
     await update.effective_message.edit_text(
@@ -170,7 +170,9 @@ def get_pnl_text():
     individual_pnl = ""
     if positions:
         for item in positions:
-            individual_pnl += "%s : %.2f INR\n" % (item["ScripName"], item["Pnl"])
+            scripname = item["ScripName"]
+            pnl = item["Pnl"]
+            individual_pnl += f"{scripname} : {pnl:.2f} INR\n"
             total += item["Pnl"]
     total_pnl = round(total, 2)
     return total_pnl, individual_pnl
