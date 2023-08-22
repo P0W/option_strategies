@@ -32,7 +32,7 @@ Before you begin, ensure you have the following prerequisites in place: (current
 ## Installation and Setup
 1. Create a virtual environment and activate it, you may use conda as well
    ```sh
-   python -m venv \path\to\myenv
+   python -m venv .
    ```
 2. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
 
