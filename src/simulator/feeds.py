@@ -1,8 +1,8 @@
+# pylint: disable=no-member
+
 import asyncio
 import json
-import logging
 import random
-import threading
 import time
 
 import numpy as np
@@ -27,34 +27,36 @@ class MockDataGenerator:
         time_to_expiration = days_to_expiration / 365
         while True:
             nifty = self.initial_nifty + np.random.uniform(-0.5, 0.6)
-            d1 = (
+            d1_value = (
                 np.log(nifty / strike_price)
                 + (self.risk_free_rate + 0.5 * self.volatility**2)
                 * time_to_expiration
             ) / (self.volatility * np.sqrt(time_to_expiration))
-            d2 = d1 - self.volatility * np.sqrt(time_to_expiration)
+            d2_value = d1_value - self.volatility * np.sqrt(time_to_expiration)
 
-            call_price = nifty * norm.cdf(d1) - strike_price * np.exp(
+            call_price = nifty * norm.cdf(d1_value) - strike_price * np.exp(
                 -self.risk_free_rate * time_to_expiration
-            ) * norm.cdf(d2)
+            ) * norm.cdf(d2_value)
             put_price = strike_price * np.exp(
                 -self.risk_free_rate * time_to_expiration
-            ) * norm.cdf(-d2) - nifty * norm.cdf(-d1)
+            ) * norm.cdf(-d2_value) - nifty * norm.cdf(-d1_value)
 
             yield {"Nifty": nifty, "CE": call_price, "PE": put_price}
 
             # Simulate changes
-            ## Reduce the time to expiration by 1 sec
+            # Reduce the time to expiration by 1 sec
             time_to_expiration -= 1 / (365 * 24 * 60 * 60)
             self.volatility = max(
                 0.01, self.volatility + np.random.uniform(-0.05, 0.05)
             )
 
-    ## Randome cooked logic:
-    ## If scripCode starts with 20 its CE, if its 30 its PE, following digit present strike 19450, 19100, etc
-    ## first 2 digit represent time to expiry in days example 03 - 3 days,  07-7 days, 30 30 -days, etc
-    ## So for instance:
-    ## 201945007 represent 19450 CE 7 days to expiry
+    # Randome cooked logic:
+    # If scripCode starts with 20 its CE, if its 30 its PE,
+    # following digit present strike 19450, 19100, etc
+    # first 2 digit represent time to expiry in days example
+    # 03 - 3 days,  07-7 days, 30 30 -days, etc
+    # So for instance:
+    # 201945007 represent 19450 CE 7 days to expiry
     def generate_tick(self, scrip_code):
         self.tick_id += 1
         ce_pe = None
@@ -109,13 +111,13 @@ class WebSocketServer:
         self.data_queue = asyncio.Queue()
         self.clients = set()
 
-    async def handle_client(self, websocket, path):
+    async def handle_client(self, websocket, _path):
         self.clients.add(websocket)
         try:
             async for message in websocket:
                 data = json.loads(
                     message
-                )  ## {"Operation": Operation, "MarketFeedData": req_list}
+                )  # {"Operation": Operation, "MarketFeedData": req_list}
                 if "Operation" in data:
                     scrip_codes = [req["ScripCode"] for req in data["MarketFeedData"]]
                     if data.get("Operation") == "s":
