@@ -1,8 +1,6 @@
 # Author: Prashant Srivastava
 import json
 import logging
-import os
-import sys
 
 from telegram import InlineKeyboardButton
 from telegram import InlineKeyboardMarkup
