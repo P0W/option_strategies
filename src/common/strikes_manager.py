@@ -1,5 +1,7 @@
 # Author : Prashant Srivastava
-# Last Modified Date  : Dec 25th, 2022
+
+# pylint: disable=unsubscriptable-object
+
 import datetime
 import logging
 import math
