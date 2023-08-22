@@ -1,4 +1,4 @@
-## Author : Prashant Srivastava
+# Author : Prashant Srivastava
 import argparse
 import datetime
 import json
@@ -9,19 +9,20 @@ from clients.client_5paisa import Client as Client5Paisa
 from common import order_manager
 from common import strikes_manager
 
-
+# pylint: disable=too-many-statements
 def main(args) -> None:
     logger = logging.getLogger(__name__)
 
-    ## Some handy day separater tag as title
+    # Some handy day separater tag as title
     logging.info(
-        "STARTING ALGO TRADING WEEKLY OTPTIONS DATED: |%s|" % datetime.datetime.now()
+        "STARTING ALGO TRADING WEEKLY OTPTIONS DATED: |%s|", datetime.datetime.now()
     )
-    logger.debug("Command Line Arguments : %s" % json.dumps(vars(args), indent=2))
+    logger.debug("Command Line Arguments : %s", json.dumps(vars(args), indent=2))
 
+    # pylint: disable=invalid-name
     EXPIRY_DAY = 0
     now = int(datetime.datetime.now().timestamp())
-    tag = "p0wss%d" % now
+    tag = f"p0wss{now}"
 
     config = {
         "CLOSEST_PREMINUM": args.closest_premium,
@@ -32,64 +33,64 @@ def main(args) -> None:
 
     monitor_tag = None
 
-    if type(args.creds) is dict:
+    if isinstance(args.creds, dict):
         client = Client5Paisa(args.creds)
     else:
         client = Client5Paisa(cred_file=args.creds)
     client.login()
-    sm = strikes_manager.StrikesManager(client=client, config=config)
-    ## For now simply log the current INDIAVIX
-    ## A very high vix day should be avoided, though the premiums will be very high
-    current_vix = sm.get_indices()["INDIAVIX"] / 100
-    logger.info("INDIA VIX :%.2f" % current_vix)
+    strike_mgr = strikes_manager.StrikesManager(client=client, config=config)
+    # For now simply log the current INDIAVIX
+    # A very high vix day should be avoided, though the premiums will be very
+    # high
+    current_vix = strike_mgr.get_indices()["INDIAVIX"] / 100
+    logger.info("INDIA VIX :%.2f", current_vix)
     if current_vix > 20.0:
         logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
         return
-    om = order_manager.OrderManager(client=client, config=config)
+    order_mgr = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0 and not args.pnl:
-        om.debug_status(tag=args.tag)
-        return
+        order_mgr.debug_status(tag=args.tag)
     elif args.pnl:
         if args.tag != "":
-            mtom = om.pnl(args.tag)
-            logger.info("MTM = %.2f" % mtom)
+            mtom = order_mgr.pnl(args.tag)
+            logger.info("MTM = %.2f", mtom)
         else:
             logger.info("Please provide a tag to show pnl")
         return
 
-    logger.info("USING INDEX :%s" % config["INDEX_OPTION"])
-    logger.info("USING CLOSEST PREMINUM :%f" % config["CLOSEST_PREMINUM"])
-    logger.info("USING SL FACTOR:%f" % config["SL_FACTOR"])
-    logger.info("USING QTY:%d" % config["QTY"])
-    logger.info("USING CURRENT TIMESTAMP TAG:%s" % tag)
-    strangles = sm.strangle_strikes(
+    logger.info("USING INDEX :%s", config["INDEX_OPTION"])
+    logger.info("USING CLOSEST PREMINUM :%f", config["CLOSEST_PREMINUM"])
+    logger.info("USING SL FACTOR:%f", config["SL_FACTOR"])
+    logger.info("USING QTY:%d", config["QTY"])
+    logger.info("USING CURRENT TIMESTAMP TAG:%s", tag)
+    strangles = strike_mgr.strangle_strikes(
         closest_price_thresh=config["CLOSEST_PREMINUM"], index=config["INDEX_OPTION"]
     )
-    straddles = sm.straddle_strikes(index=config["INDEX_OPTION"])
+    straddles = strike_mgr.straddle_strikes(index=config["INDEX_OPTION"])
 
-    symbol_pattern = "%s\s(\d+)\s" % config["INDEX_OPTION"]
-    st = re.search(symbol_pattern, straddles["ce_name"])
-    if st:
-        EXPIRY_DAY = int(st.group(1))
-    logger.info("Expiry day:%d" % EXPIRY_DAY)
+    symbol_pattern = f"{config['INDEX_OPTION']}\\s(\\d+)\\s"
+    search_text = re.search(symbol_pattern, straddles["ce_name"])
+    if search_text:
+        EXPIRY_DAY = int(search_text.group(1))
+    logger.info("Expiry day:%d", EXPIRY_DAY)
 
-    logger.info("Obtained Strangle Strikes:%s" % json.dumps(strangles, indent=2))
-    logger.info("Obtained Straddle Strikes:%s" % json.dumps(straddles, indent=2))
+    logger.info("Obtained Strangle Strikes:%s", json.dumps(strangles, indent=2))
+    logger.info("Obtained Straddle Strikes:%s", json.dumps(straddles, indent=2))
 
     if not args.show_strikes_only and args.tag == "":
         if args.strangle:
-            om.place_short(strangles, tag)
-            om.place_short_stop_loss_v2(tag)
+            order_mgr.place_short(strangles, tag)
+            order_mgr.place_short_stop_loss_v2(tag)
             monitor_tag = tag
         if args.straddle:
-            om.place_short(straddles, tag)
-            om.place_short_stop_loss_v2(tag)
+            order_mgr.place_short(straddles, tag)
+            order_mgr.place_short_stop_loss_v2(tag)
             monitor_tag = tag
     if args.monitor_target > 0.0:
         if args.tag != "":
             monitor_tag = args.tag
         if monitor_tag:
-            om.monitor_v2(
+            order_mgr.monitor_v2(
                 target=args.monitor_target, tag=monitor_tag, expiry_day=EXPIRY_DAY
             )
         else:
@@ -154,7 +155,8 @@ if __name__ == "__main__":
         type=str,
         default="",
         required=False,
-        help="Tag to print status of last order for given tag, if combined with --monitor_target it polls the position for given tag",
+        help="Tag to print status of last order for given tag, \
+        if combined with --monitor_target it polls the position for given tag",
     )
     parser.add_argument(
         "--log-level",
@@ -166,6 +168,6 @@ if __name__ == "__main__":
     parser.add_argument("--pnl", action="store_true", help="Show current PNL")
     parser.add_argument("--strangle", action="store_true", help="Place Strangle")
     parser.add_argument("--straddle", action="store_true", help="Place Straddle")
-    args = parser.parse_args()
-    Client5Paisa.configure_logger(args.log_level)
-    main(args)
+    arguments = parser.parse_args()
+    Client5Paisa.configure_logger(arguments.log_level)
+    main(arguments)

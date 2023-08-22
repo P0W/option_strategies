@@ -83,7 +83,7 @@ class LiveFeedManager:
                 return
 
             def on_error(_ws, err):
-                self.logger.error("WebSocket error: %s",err)
+                self.logger.error("WebSocket error: %s", err)
 
             def process_msg(msg: dict):
                 if "Status" in msg:
@@ -264,5 +264,5 @@ class LiveFeedManager:
             self.req_list = [
                 item for item in self.req_list if item["ScripCode"] not in scrip_codes
             ]
-            self.logger.info("Unsubscribed from scrips:%s",scrip_codes)
+            self.logger.info("Unsubscribed from scrips:%s", scrip_codes)
         return True

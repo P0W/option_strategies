@@ -1,4 +1,4 @@
-## Author: Prashant Srivastava
+# Author: Prashant Srivastava
 import datetime
 import logging
 import pathlib
@@ -6,15 +6,17 @@ import sys
 from abc import ABC
 from abc import abstractmethod
 
-
+# pylint: disable=too-many-public-methods
 class IClientManager(ABC):
+    @staticmethod
     def configure_logger(log_level):
-        ## Setup logging
-        ## create a directory logs if it does not exist
+        # Setup logging
+        # create a directory logs if it does not exist
         pathlib.Path.mkdir(pathlib.Path("logs"), exist_ok=True)
-        ## Create a filename suffixed with current date DDMMYY format with current date inside logs directory
+        # Create a filename suffixed with current date DDMMYY format with
+        # current date inside logs directory
         log_file = pathlib.Path("logs") / (
-            "daily_short_%s.log" % datetime.datetime.now().strftime("%Y%m%d")
+            f"daily_short_{datetime.datetime.now().strftime('%Y%m%d')}.log"
         )
         logging.basicConfig(
             format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
@@ -27,7 +29,7 @@ class IClientManager(ABC):
         )
 
     @abstractmethod
-    def login(self, cred_file: str = "creds.json"):
+    def login(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -67,11 +69,12 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def cancel_bulk_order(self, ExchOrderIDs: list):
+    def cancel_bulk_order(self, exch_order_ids: list):
         raise NotImplementedError
 
+    #pylint: disable=invalid-name
     @abstractmethod
-    def Request_Feed(self, Method: str, Operation: str, req_list: list):
+    def Request_Feed(self, method: str, operation: str, req_list: list):
         raise NotImplementedError
 
     @abstractmethod
@@ -91,7 +94,7 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def send_data(self, open_: any):
+    def send_data(self, wspayload: any):
         raise NotImplementedError
 
     @abstractmethod

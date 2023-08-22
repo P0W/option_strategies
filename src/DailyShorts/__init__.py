@@ -1,5 +1,6 @@
-## Author : Prashant Srivastava
-## Last Modified Date  : March 19th, 2023
+# Author : Prashant Srivastava
+
+# pylint: disable=invalid-name
 import argparse
 import datetime
 import logging
@@ -7,8 +8,6 @@ import logging
 import azure.functions as func
 
 import daily_short
-
-daily_short.configure_logger("DEBUG")
 
 args = argparse.Namespace(
     quantity=400,

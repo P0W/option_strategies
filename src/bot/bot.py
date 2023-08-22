@@ -4,8 +4,6 @@ import logging
 import os
 import sys
 
-from clients.client_5paisa import Client
-from telegram import __version__ as TG_VER
 from telegram import InlineKeyboardButton
 from telegram import InlineKeyboardMarkup
 from telegram import Update
@@ -17,25 +15,14 @@ from telegram.ext import filters
 from telegram.ext import InvalidCallbackData
 from telegram.ext import MessageHandler
 
+from clients.client_5paisa import Client
+
 # Get the current directory
 current_directory = os.path.dirname(os.path.abspath(__file__))
 # Get the parent directory
 parent_directory = os.path.dirname(current_directory)
 # Add the parent directory to sys.path temporarily
 sys.path.append(parent_directory)
-
-
-try:
-    from telegram import __version_info__
-except ImportError:
-    __version_info__ = (0, 0, 0, 0, 0)  # type: ignore[assignment]
-
-if __version_info__ < (20, 0, 0, "alpha", 5):
-    raise RuntimeError(
-        f"This is not compatible with current PTB version {TG_VER}. To view the "
-        f"{TG_VER} version of this example, "
-        f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
-    )
 
 
 logging.basicConfig(
