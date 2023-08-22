@@ -121,7 +121,7 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
 
 ## High Level Design
 
-![HLD](https://github.com/P0W/option_strategies/blob/main/options_strategies.png)
+![HLD](resources/options_strategies.png)
 
 ## How to develop a strategy ?
 <details>
