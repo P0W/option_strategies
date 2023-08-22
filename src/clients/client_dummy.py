@@ -178,3 +178,15 @@ class Client(iclientmanager.IClientManager):
 
     def login(self):
         return self
+    
+    ## @override
+    def get_pnl_summary(self, tag: str = None):
+        return super().get_pnl_summary(tag)
+    
+    ## @override
+    def get_todays_tags(self):
+        return super().get_todays_tags()
+    
+    ## @override
+    def fetch_market_depth(self, request_prices: list):
+        return super().fetch_market_depth(request_prices)

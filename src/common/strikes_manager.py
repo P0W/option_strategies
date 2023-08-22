@@ -6,7 +6,7 @@ import math
 import re
 from typing import Any
 
-from clients.iclientmanager import IClientManager
+from src.clients.iclientmanager import IClientManager
 
 
 class StrikesManager:

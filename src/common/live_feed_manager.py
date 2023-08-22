@@ -6,7 +6,7 @@ import threading
 from typing import Callable
 from typing import List
 
-from clients.iclientmanager import IClientManager
+from src.clients.iclientmanager import IClientManager
 
 
 class LiveFeedManager:

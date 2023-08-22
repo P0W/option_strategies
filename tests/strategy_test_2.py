@@ -5,17 +5,12 @@ import os
 import sys
 import time
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
-# Get the parent directory
-parent_directory = os.path.dirname(current_directory)
-# Add the parent directory to sys.path temporarily
-sys.path.append(parent_directory)
 
-from strategy import base_strategy
-from common import live_feed_manager
-from common import order_manager
-from common import strikes_manager
-from clients.client_dummy import Client as DummyClient
+from src.strategy import base_strategy
+from src.common import live_feed_manager
+from src.common import order_manager
+from src.common import strikes_manager
+from src.clients.client_dummy import Client as DummyClient
 
 import signal
 import time

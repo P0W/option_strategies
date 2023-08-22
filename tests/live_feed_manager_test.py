@@ -3,17 +3,17 @@ import os
 import sys
 import time
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
-# Get the parent directory
-parent_directory = os.path.dirname(current_directory)
-# Add the parent directory to sys.path temporarily
-sys.path.append(parent_directory)
+# current_directory = os.path.dirname(os.path.abspath(__file__))
+# # Get the parent directory
+# parent_directory = os.path.dirname(current_directory)
+# # Add the parent directory to sys.path temporarily
+# sys.path.append(parent_directory)
 
-from common import live_feed_manager
-from common import strikes_manager
+from src.common import live_feed_manager
+from src.common import strikes_manager
 import json
 import logging
-from clients.client_5paisa import Client as Client5Paisa
+from src.clients.client_5paisa import Client as Client5Paisa
 
 
 def straddle_calculator(res: dict, user_data: dict):
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     ## Setup logging
     Client5Paisa.configure_logger("DEBUG")
     ## Setup client
-    client = Client5Paisa("..\creds.json")
+    client = Client5Paisa("creds.json")
     client.login()
     ## Get straddle strikes and premium
     sm = strikes_manager.StrikesManager(client, {})

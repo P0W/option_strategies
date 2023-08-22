@@ -4,8 +4,8 @@ import json
 import logging
 import time
 
-from clients.iclientmanager import IClientManager
-from common import live_feed_manager
+from src.clients.iclientmanager import IClientManager
+from src.common import live_feed_manager
 
 
 # This class is responsible for placing orders, monitoring them and squaring off
