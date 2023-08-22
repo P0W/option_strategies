@@ -1,15 +1,13 @@
 ## Author : Prashant Srivastava
-
-import re
-import datetime
-import logging
-import json
 import argparse
+import datetime
+import json
+import logging
+import re
 
-from common import strikes_manager
-from common import order_manager
-import utils
 from clients.client_5paisa import Client as Client5Paisa
+from common import order_manager
+from common import strikes_manager
 
 
 def main(args) -> None:
@@ -32,14 +30,6 @@ def main(args) -> None:
         "INDEX_OPTION": args.index,
     }
 
-    ## For now simply log the current INDIAVIX
-    ## A very high vix day should be avoided, though the premiums will be very high
-    current_vix = utils.get_india_vix()
-    logger.info("INDIA VIX :%.2f" % current_vix)
-    if current_vix > 20.0:
-        logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
-        return
-
     monitor_tag = None
 
     if type(args.creds) is dict:
@@ -48,6 +38,13 @@ def main(args) -> None:
         client = Client5Paisa(cred_file=args.creds)
     client.login()
     sm = strikes_manager.StrikesManager(client=client, config=config)
+    ## For now simply log the current INDIAVIX
+    ## A very high vix day should be avoided, though the premiums will be very high
+    current_vix = sm.get_indices()["INDIAVIX"] / 100
+    logger.info("INDIA VIX :%.2f" % current_vix)
+    if current_vix > 20.0:
+        logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
+        return
     om = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0 and not args.pnl:
         om.debug_status(tag=args.tag)

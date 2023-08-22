@@ -1,11 +1,11 @@
 ## Author : Prashant Srivastava
 ## Last Modified Date  : Dec 25th, 2022
-
 import datetime
-import math
 import logging
+import math
 import re
 from typing import Any
+
 from clients.iclientmanager import IClientManager
 
 
@@ -121,3 +121,22 @@ class StrikesManager:
             "pe_ltp": pe_ltp,
             "pe_name": pe_name,
         }
+
+    def get_indices(self):
+        req_items = {999920000: "NIFTY", 999920005: "BANKNIFTY", 999920019: "INDIAVIX"}
+        request_prices = list(
+            map(
+                lambda item: {
+                    "Exchange": "N",
+                    "ExchangeType": "D",
+                    "ScripCode": item,
+                },
+                req_items.keys(),
+            )
+        )
+        depth = self.client.fetch_market_depth(request_prices)["Data"]
+        print(depth)
+        ltp_dict = {
+            req_items[dep["ScripCode"]]: dep["LastTradedPrice"] for dep in depth
+        }
+        return ltp_dict

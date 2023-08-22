@@ -1,8 +1,8 @@
 ## Author : Prashant Srivastava
-
 import logging
 import time
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 
 class BaseStrategy(ABC):

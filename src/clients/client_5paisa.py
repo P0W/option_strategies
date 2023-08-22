@@ -1,9 +1,12 @@
 ## Author: Prashant Srivastava
-
+import datetime
 import json
-from py5paisa import FivePaisaClient
+import re
+
 import pyotp
 import redis
+from py5paisa import FivePaisaClient
+
 from . import iclientmanager
 
 
@@ -18,11 +21,6 @@ class Client(iclientmanager.IClientManager):
 
     ## @override - @TODO: Move redis to basse class
     def login(self):
-        self._client = FivePaisaClient(self.cred)
-        totp = pyotp.TOTP(self.cred["totp_secret"])
-        self._client.get_totp_session(
-            self.cred["clientcode"], totp.now(), self.cred["pin"]
-        )
         self._client = FivePaisaClient(self.cred)
         try:
             redis_client = redis.Redis(host="127.0.0.1")
@@ -117,9 +115,13 @@ class Client(iclientmanager.IClientManager):
         return None
 
     ## @override
-    def get_pnl_summary(self, tag: str):
+    def get_pnl_summary(self, tag: str = None):
+        if not tag:
+            tags = self.get_todays_tags()
+        else:
+            tags = [tag]
         order_status = self._client.fetch_order_status(
-            [{"Exch": "N", "RemoteOrderID": tag}]
+            [{"Exch": "N", "RemoteOrderID": tag} for tag in tags]
         )["OrdStatusResLst"]
         ExchOrderIDs = [
             int(x["ExchOrderID"])
@@ -153,7 +155,7 @@ class Client(iclientmanager.IClientManager):
             )
         )
 
-        depth = self._client.fetch_market_depth(request_prices)["Data"]
+        depth = self.fetch_market_depth(request_prices)["Data"]
         ltp_dict = {dep["ScripCode"]: dep["LastTradedPrice"] for dep in depth}
         for order in matching_orders:
             order["LastTradedPrice"] = ltp_dict[order["ScripCode"]]
@@ -163,3 +165,30 @@ class Client(iclientmanager.IClientManager):
                 * (1 if order["BuySell"] == "B" else -1)
             )
         return matching_orders
+
+    ## @override
+    def get_todays_tags(self):
+        order_book = self._client.order_book()
+        tags = []
+        for order in order_book:
+            if "RemoteOrderID" not in order:
+                print(order)
+            try:
+                st = re.search("\w(\d+)$", order["RemoteOrderID"])
+                if st:
+                    timestamp_str = int(st.group(1))  # Extract the timestamp part from the text
+                    # Convert the timestamp to a datetime object
+                    timestamp_unix = int(timestamp_str)
+                    timestamp_datetime = datetime.datetime.utcfromtimestamp(timestamp_unix)
+                    # Get the current date
+                    current_date = datetime.date.today()
+                    if timestamp_datetime.date() == current_date:
+                        if order["RemoteOrderID"] not in tags:
+                            tags.append(order["RemoteOrderID"])
+            except Exception as e:
+                pass
+        return tags
+
+    ## @override
+    def fetch_market_depth(self, req_list: list):
+        return self._client.fetch_market_depth(req_list)

@@ -1,10 +1,10 @@
 ## Author: Prashant Srivastava
-
-from abc import ABC, abstractmethod
 import datetime
 import logging
 import pathlib
 import sys
+from abc import ABC
+from abc import abstractmethod
 
 
 class IClientManager(ABC):
@@ -95,5 +95,13 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_pnl_summary(self, tag: str):
+    def get_pnl_summary(self, tag: str = None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_todays_tags(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def fetch_market_depth(self, req_list: list):
         raise NotImplementedError

@@ -1,12 +1,18 @@
 # Option Strategies
 
+Following writeup is just an example how to initiate a high probably trade with short strange/straddle. However much more can be achieved, please refer the [design](https://github.com/P0W/option_strategies#high-level-design) for more insights.
+
+---
 
 Short strangles historically has given good returns, with high probablity of profit. However the risk is high if naked strangles/staddle are placed.
 
 The focus here is HIGH PROBABILITY OF PROFIT. 
 
 On my experience and some backesting on stockmock and algotest.in platforms, if we short strikes near to 1 standard deviation OTM, there's a high probability of profit.
-And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 55% from entry price on both legs.
+And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 65% from entry price on both legs.
+On expiry we can do same with straddle (short ATM PE and CE), with 65% stop loss on both legs.
+
+Trailing stop loss also reduces loss days and can be tried out. Do check out the [`backtest`](https://github.com/P0W/option_strategies/tree/main/backtest) for more interesting insights.
 
 We can also place a **_live monitor_** feed to monitor MTM on both legs and sqaure off if either a provided MTM SL is hit or a provided  MTM target is achieved for the day.
 
@@ -24,8 +30,11 @@ Before you begin, ensure you have the following prerequisites in place: (current
 - **5paisa Python SDK:** You must install the `py5paisa` Python package, which serves as the SDK for interacting with the 5paisa API.
 
 ## Installation and Setup
-
-1. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
+1. Create a virtual environment and activate it, you may use conda as well
+   ```sh
+   python -m venv \path\to\myenv
+   ```
+2. Install  `py5paisa==0.6.7` and `requests` package or directly use `requirements.txt` file using the following command:
 
     ```sh
    pip install -r requirements.txt
@@ -47,9 +56,16 @@ Create a file named `creds.json` in the root directory of your project. Populate
    "ENCRYPTION_KEY": "YOUR_ENCRYPTION_KEY"
    "email": "YOUR_LOGIN_EMAIL",
    "passwd": "YOUR_LOGIN_PASSWORD",
-   "dob": "YOUR_DOB"
+   "dob": "YOUR_DOB",
+   "totp_secret": "YOUR_TOTP_SECRET", 
+   "pin": "YOUR_PIN",
+   "clientcode": "YOUR_CLIENT_CODE",
+   "telegram_token":"TELEGRAM_BOT_TOKEN" 
 }
 ```
+Note: 
+-  _`totp_secret` Can be obtained very first time you add TOTP based login to your authenticator app_
+-  _`telegram_token` Only if interested for telegram updates for MTM and order updates_
 
 ## Usage
 
@@ -103,7 +119,7 @@ A simulation using [**algotest.in**](https://algotest.in/) is performed for peri
 
 For detailed deployment instructions on Azure, refer to the [`DailyShorts`](https://github.com/P0W/option_strategies/tree/main/DailyShorts) folder within this repository.
 
-## High Level Design (inital thoughts)
+## High Level Design
 
 ![HLD](https://github.com/P0W/option_strategies/blob/main/options_strategies.png)
 
@@ -115,22 +131,24 @@ For detailed deployment instructions on Azure, refer to the [`DailyShorts`](http
 
 ## Future work
 
+* Implement more the client interface for Zerodha, Fyers, Shoonya, Upstock, etc. - Need help from people having these broker accounts
 * Improve Live monitoring
-  * Filter closed/cancelled orders - Check 5paisa API support it?
+  * ~~Update pnl calculate to incorporate any abstract strategy~~
+  * Filter closed orders - Check 5paisa API support it ? - Sent email to 5paisa team - No response yet
   * Add indicators : VWAP, ADX and Supertrend
   * Add UX to see MTM more intutively
-  * Move to asyncio, if possible
-  * ~~Update pnl calculate to incorporate any abstract strategy~~
+  * Move to asyncio, if possible - likely not possible with 5paisa client
+* Order Manger is currently tied little too much with 5paisa, see if we can abstract details and put it behind individual clients ?
+  * Add orders to mongodb - this should be ideally done from Order Manger ?
+* Check how live monitor can work with cloud integrations - Look for suitable resource
 * ~~Add adapter to work with any broker's API~~
 * ~~Check why 5paisa fragments/split single order with multiple lot into multiple orders with smaller lot~~
-* Create a DB journal for all trades placed
-* Check how live monitor can work with cloud integrations - Look for suitable resource
 * ~~Add fake signal generator~~
 * ~~Add design doc~~
-* Implement more clients
-* Add orders to mongodb
-* Add access token in redis 
-  
-Thank you for using the Daily Short Strangle/Straddle strategy repository. Clarifications/suggestions are welcomed. 
+* ~~Add access token in redis~~
+* ~~Add updates via telegram bot~~
+
+
+Thank you for using this repository. Clarifications/suggestions/pull requests/discussions are welcomed. 
 
 Happy trading!

@@ -1,11 +1,12 @@
 import asyncio
-import websockets
-import threading
 import json
-import random
-import time
 import logging
+import random
+import threading
+import time
+
 import numpy as np
+import websockets
 from scipy.stats import norm
 
 
