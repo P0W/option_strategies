@@ -9,6 +9,7 @@ from clients.client_5paisa import Client as Client5Paisa
 from common import order_manager
 from common import strikes_manager
 
+
 # pylint: disable=too-many-statements
 def main(args) -> None:
     logger = logging.getLogger(__name__)

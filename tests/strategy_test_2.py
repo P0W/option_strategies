@@ -142,7 +142,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     def stop(self):
         self.feed_manager.stop()
         return super().stop()
-    
+
     def get_leg_pnl(self, code: int, avg: float, qty: int, ltp: float):
         return (avg - ltp) * qty
 

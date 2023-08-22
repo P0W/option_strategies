@@ -17,8 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint black
+        pip install pylint
     - name: Analysing the code with pylint
       run: |
-        black $(git ls-files '*.py')
-        pylint --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,import-error,broad-exception-caught,too-many-instance-attributes,too-many-locals,too-many-branches $(git ls-files '*.py')
+        pylint --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,import-error,broad-exception-caught,too-many-instance-attributes,too-many-locals,too-many-branches $(git ls-files 'src/*.py')

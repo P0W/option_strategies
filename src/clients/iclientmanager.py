@@ -6,6 +6,7 @@ import sys
 from abc import ABC
 from abc import abstractmethod
 
+
 # pylint: disable=too-many-public-methods
 class IClientManager(ABC):
     @staticmethod
@@ -72,7 +73,7 @@ class IClientManager(ABC):
     def cancel_bulk_order(self, exch_order_ids: list):
         raise NotImplementedError
 
-    #pylint: disable=invalid-name
+    # pylint: disable=invalid-name
     @abstractmethod
     def Request_Feed(self, method: str, operation: str, req_list: list):
         raise NotImplementedError
