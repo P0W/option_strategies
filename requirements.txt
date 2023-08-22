@@ -12,4 +12,5 @@ pymongo==4.4.1
 python-telegram-bot==20.4
 python-telegram-bot[job-queue]==20.4
 redis==5.0.0
-reorder-python-imports
+mkdocs==1.5.2
+reorder-python-imports==3.10.0

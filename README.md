@@ -1,3 +1,4 @@
+# Option Strategies
 
 Following writeup is just an example how to initiate a high probably trade with short strange/straddle. However much more can be achieved, please refer the [design](https://github.com/P0W/option_strategies#high-level-design) for more insights.
 
