@@ -26,10 +26,11 @@ class OrderManager:
         for item in ["ce", "pe"]:
             # strikes["%s_ltp" % item] # Market Order if price =0.0
             price = 0.0
+            scrip_code = strikes[f"{item}_code"]
             textinfo = f"""client.place_order(OrderType='S',
                                   Exchange='N',
                                   ExchangeType={self.exchange_type},
-                                  ScripCode={strikes["{item}_code"]},
+                                  ScripCode={scrip_code},
                                   Qty={self.config["QTY"]},
                                   Price={price}, IsIntraday=True,
                                   RemoteOrderID={tag})"""
@@ -39,7 +40,7 @@ class OrderManager:
                 OrderType="S",
                 Exchange="N",
                 ExchangeType=self.exchange_type,
-                ScripCode=strikes[f"{item}_code"],
+                ScripCode=scrip_code,
                 Qty=self.config["QTY"],
                 Price=price,
                 IsIntraday=True,
