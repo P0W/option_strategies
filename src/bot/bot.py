@@ -1,8 +1,6 @@
 # Author: Prashant Srivastava
 import json
 import logging
-import os
-import sys
 
 from telegram import InlineKeyboardButton
 from telegram import InlineKeyboardMarkup
@@ -15,14 +13,7 @@ from telegram.ext import filters
 from telegram.ext import InvalidCallbackData
 from telegram.ext import MessageHandler
 
-from clients.client_5paisa import Client
-
-# Get the current directory
-current_directory = os.path.dirname(os.path.abspath(__file__))
-# Get the parent directory
-parent_directory = os.path.dirname(current_directory)
-# Add the parent directory to sys.path temporarily
-sys.path.append(parent_directory)
+from src.clients.client_5paisa import Client
 
 
 logging.basicConfig(
@@ -33,10 +24,10 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # read API_TOKEN from file creds.json
-with open("../creds.json", encoding="utf8") as cred_fh:
+with open("creds.json", encoding="utf8") as cred_fh:
     cred = json.load(cred_fh)
 API_TOKEN = cred["telegram_token"]
-client = Client(cred_file="../creds.json")
+client = Client(cred_file="creds.json")
 client.login()
 
 
