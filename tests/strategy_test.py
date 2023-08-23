@@ -77,7 +77,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.user_data["nifty_index"]["high"] = ohlcvt["h"]
             if time.time() - self.user_data["start_time"] > 15:  ## Wait for 15 seconds
                 ## check "close" of nifty index is between high and low before the start of the strategy
-                if True or (
+                if (
                     ohlcvt["c"] < self.user_data["nifty_index"]["high"]
                     and ohlcvt["c"] > self.user_data["nifty_index"]["low"]
                 ):
@@ -92,12 +92,10 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     return True
             else:
                 self.logger.info(
-                    "Nifty at %f waiting for entry condition [%f, %f]"
-                    % (
-                        ohlcvt["c"],
-                        self.user_data["nifty_index"]["low"],
-                        self.user_data["nifty_index"]["high"],
-                    )
+                    "Nifty at %f waiting for entry condition [%f, %f]",
+                    ohlcvt["c"],
+                    self.user_data["nifty_index"]["low"],
+                    self.user_data["nifty_index"]["high"],
                 )
         return False
 
@@ -176,8 +174,9 @@ class StrangleStrategy(base_strategy.BaseStrategy):
             ][0]
             ## update the stop loss order - Move SL to entry price
             self.logger.info(
-                "Modifying stop loss order for %s, %f"
-                % (other_scrip_code, all_executed_orders[other_scrip_code]["rate"])
+                "Modifying stop loss order for %s, %f",
+                other_scrip_code,
+                all_executed_orders[other_scrip_code]["rate"],
             )
             self.order_manager.modify_stop_loss_order(
                 tag=self.tag,

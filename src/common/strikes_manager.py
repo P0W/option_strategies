@@ -138,7 +138,6 @@ class StrikesManager:
             )
         )
         depth = self.client.fetch_market_depth(request_prices)["Data"]
-        print(depth)
         ltp_dict = {
             req_items[dep["ScripCode"]]: dep["LastTradedPrice"] for dep in depth
         }
