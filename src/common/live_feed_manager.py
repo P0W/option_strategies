@@ -204,11 +204,11 @@ class LiveFeedManager:
 
     def on_cancel_order(self, message: dict):
         # Default implementation - simply log
-        self.logger.info("Order cancelled:%s", message)
+        self.logger.info("Order cancelled:%s", json.dumps(message, indent=2))
 
     def on_sl_order(self, message: dict):
         # Default implementation - simply log
-        self.logger.info("Stop loss order:%s", message)
+        self.logger.info("Stop loss order:%s", json.dumps(message, indent=2))
 
     def _on_order_update(
         self,

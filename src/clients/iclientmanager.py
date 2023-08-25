@@ -20,7 +20,7 @@ class IClientManager(ABC):
             f"daily_short_{datetime.datetime.now().strftime('%Y%m%d')}.log"
         )
         logging.basicConfig(
-            format="%(asctime)s.%(msecs)d %(funcName)20s() %(levelname)s %(message)s",
+            format="%(asctime)s.%(msecs)d %(filename)s:%(lineno)d %(funcName)20s() %(levelname)s %(message)s",
             datefmt="%A,%d/%m/%Y|%H:%M:%S",
             handlers=[
                 logging.StreamHandler(sys.stdout),
