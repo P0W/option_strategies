@@ -1,6 +1,7 @@
 ## Author : Prashant Srivastava
 # pylint: disable=redefined-outer-name
 import argparse
+import sys
 import time
 
 
@@ -101,15 +102,15 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                         "Candle timestamp difference: %2.f",
                         self.user_data["start_time"] - ohlcvt["t"],
                     )
-                else:
-                    ## 15 seconds have passed, but the close is not between high and low
-                    self.logger.debug(
-                        "%.2f seconds Elapsed. Nifty at %f not between [%f, %f]",
-                        self.wait_time,
-                        ohlcvt["c"],
-                        self.user_data["nifty_index"]["low"],
-                        self.user_data["nifty_index"]["high"],
-                    )
+                    return True
+                ## 15 seconds have passed, but the close is not between high and low
+                self.logger.debug(
+                    "%.2f seconds Elapsed. Nifty at %f not between [%f, %f]",
+                    self.wait_time,
+                    ohlcvt["c"],
+                    self.user_data["nifty_index"]["low"],
+                    self.user_data["nifty_index"]["high"],
+                )
             else:
                 self.logger.info(
                     "Nifty at %f waiting for entry condition [%f, %f]",
@@ -233,13 +234,19 @@ argparser.add_argument("--wait_time", type=float, default=15.0)
 
 
 if __name__ == "__main__":
+    args = argparser.parse_args()
+    # if help is used, exit
+    try:
+        if args.help:
+            sys.exit(0)
+    except Exception:
+        pass
     ## Setup logging
     Client5Paisa.configure_logger("DEBUG")
     ## Setup client
     client = Client5Paisa("creds.json")
     client.login()
 
-    args = argparser.parse_args()
     ## Set up Config
     config = {
         "CLOSEST_PREMINUM": args.closest_premium,
