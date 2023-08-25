@@ -19,8 +19,9 @@ class IClientManager(ABC):
         log_file = pathlib.Path("logs") / (
             f"daily_short_{datetime.datetime.now().strftime('%Y%m%d')}.log"
         )
+        # pylint: disable=line-too-long
         logging.basicConfig(
-            format="%(asctime)s.%(msecs)d %(filename)s:%(lineno)d %(funcName)20s() %(levelname)s %(message)s",
+            format="%(asctime)s.%(msecs)d %(filename)s:%(lineno)d:%(funcName)s() %(levelname)s %(message)s",
             datefmt="%A,%d/%m/%Y|%H:%M:%S",
             handlers=[
                 logging.StreamHandler(sys.stdout),
@@ -109,12 +110,16 @@ class IClientManager(ABC):
     @abstractmethod
     def fetch_market_depth(self, req_list: list):
         raise NotImplementedError
-    
+
     @abstractmethod
-    def historical_data(self, exch: str, 
-                        exchange_segment: str, 
-                        scrip_code: int, 
-                        time_val: str, 
-                        from_val: str, 
-                        to_val: str):
+    # pylint: disable=too-many-arguments
+    def historical_data(
+        self,
+        exch: str,
+        exchange_segment: str,
+        scrip_code: int,
+        time_val: str,
+        from_val: str,
+        to_val: str,
+    ):
         raise NotImplementedError

@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Running pre-commit hook blacking files"
+all_changed_files=$(git diff --name-only --cached -- '*.py')
+black $all_changed_files
+# Check the exit status of the last command
+if [ $? -ne 0 ]; then
+    echo "Black formatting failed"
+    exit 1  # Exit with an error status
+fi
+
+exit 0  # Exit with a success status

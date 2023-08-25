@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from . import iclientmanager
 
 
+# pylint: disable=too-many-public-methods
 class Client(iclientmanager.IClientManager):
     def __init__(self, _file_name: str = "creds.json"):
         self.host = "localhost"
@@ -190,12 +191,16 @@ class Client(iclientmanager.IClientManager):
     ## @override
     def fetch_market_depth(self, _req_list: list):
         return {}
-    
+
     ## @override
-    def historical_data(self, exch: str,
-                        exchange_segment: str,
-                        scrip_code: int,
-                        interval: str,
-                        start_date: str,
-                        end_date: str):
+    # pylint: disable=too-many-arguments
+    def historical_data(
+        self,
+        _exch: str,
+        _exchange_segment: str,
+        _scrip_code: int,
+        _time_val: str,
+        _from_val: str,
+        _to_val: str,
+    ):
         return {}

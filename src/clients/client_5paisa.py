@@ -13,6 +13,7 @@ from py5paisa import FivePaisaClient
 from . import iclientmanager
 
 
+# pylint: disable=too-many-public-methods
 class Client(iclientmanager.IClientManager):
     ACCESS_TOKEN_KEY = "access_token"
 
@@ -200,12 +201,18 @@ class Client(iclientmanager.IClientManager):
     # @override
     def fetch_market_depth(self, req_list: list):
         return self._client.fetch_market_depth(req_list)
-    
+
     # @override
-    def historical_data(self, exch: str,
-                        exchange_segment: str,
-                        scrip_code: int,
-                        interval: str,
-                        start_date: str,
-                        end_date: str):
-        return self._client.historical_data(exch, exchange_segment, scrip_code, interval, start_date, end_date)
+    # pylint: disable=too-many-arguments
+    def historical_data(
+        self,
+        exch: str,
+        exchange_segment: str,
+        scrip_code: int,
+        time_val: str,
+        from_val: str,
+        to_val: str,
+    ):
+        return self._client.historical_data(
+            exch, exchange_segment, scrip_code, time_val, from_val, to_val
+        )
