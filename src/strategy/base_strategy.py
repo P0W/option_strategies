@@ -1,4 +1,5 @@
 # Author : Prashant Srivastava
+import json
 import logging
 import time
 from abc import ABC
@@ -71,7 +72,7 @@ class BaseStrategy(ABC):
         # This will be called for "Fully Executed"" only
         # check if order["ScripCode"] is in self.scrip_codes
         # if yes, add to self.executed_orders
-        self.logger.info("base strategy | order_placed: %s %s", order, self.scrip_codes)
+        self.logger.info("%s %s", json.dumps(order, indent=2), self.scrip_codes)
         if order["ScripCode"] in self.scrip_codes:
             if not self.executed_orders:
                 self.executed_orders = {}
