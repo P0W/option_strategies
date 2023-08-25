@@ -18,9 +18,13 @@ services:
     ports:
       - "27017:27017"
 
-  # python-interaction:
-  #   build:
-  #     context: .
-  #   depends_on:
-  #     - minimal-redis
-  #     - minimal-mongodb
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    restart: always    
+    container_name: minimal-timescaledb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: 'admin'
+      POSTGRES_PASSWORD: 'admin'
+  
