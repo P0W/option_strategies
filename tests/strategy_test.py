@@ -1,7 +1,6 @@
 ## Author : Prashant Srivastava
-
-import os
-import sys
+# pylint: disable=redefined-outer-name
+import argparse
 import time
 
 
@@ -37,10 +36,12 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.order_manager = order_manager
         self.feed_manager = feed_manager
 
-        self.target_profit = 50.0
-        self.sl_target = -100.0
         self.strikes = strikes
+        self.target_profit = self.order_manager.config["target_profit"]
+        self.sl_target = self.order_manager.config["target_loss"]
         self.qty = self.order_manager.config["QTY"]
+        self.wait_time = self.order_manager.config["wait_time"]
+        self.displayed_time = time.time()
 
         self.user_data = {
             "nifty_index": {"low": -1.0, "high": -1.0},
@@ -75,21 +76,40 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 self.user_data["nifty_index"]["low"] = ohlcvt["l"]
             if self.user_data["nifty_index"]["high"] == -1.0:
                 self.user_data["nifty_index"]["high"] = ohlcvt["h"]
-            if time.time() - self.user_data["start_time"] > 15:  ## Wait for 15 seconds
-                ## check "close" of nifty index is between high and low before the start of the strategy
+            if (
+                time.time() - self.user_data["start_time"] > self.wait_time
+            ):  ## Wait for 15 seconds
+                self.user_data["start_time"] = time.time()
+                ## check "close" of nifty index is between high and
+                ## low before the start of the strategy
                 if (
                     ohlcvt["c"] < self.user_data["nifty_index"]["high"]
                     and ohlcvt["c"] > self.user_data["nifty_index"]["low"]
                 ):
-                    ## Update the start time
-                    self.user_data["start_time"] = time.time()
                     ## Unsubscribe from the nifty index feed
                     self.feed_manager.unsubscribe(
                         scrip_codes=[StrangleStrategy.NIFTY_INDEX]
                     )
                     ## we are ready to take the trade
-                    self.logger.info("Ready to take the trade")
-                    return True
+                    self.logger.info("Ready to take the trade at %f", ohlcvt["c"])
+                    ## Log some stats
+                    self.logger.debug(
+                        "Entry Time stamp: %2.f", self.user_data["start_time"]
+                    )
+                    self.logger.debug("Candle Time stamp: %2.f", ohlcvt["t"])
+                    self.logger.debug(
+                        "Candle timestamp difference: %2.f",
+                        self.user_data["start_time"] - ohlcvt["t"],
+                    )
+                else:
+                    ## 15 seconds have passed, but the close is not between high and low
+                    self.logger.debug(
+                        "%.2f seconds Elapsed. Nifty at %f not between [%f, %f]",
+                        self.wait_time,
+                        ohlcvt["c"],
+                        self.user_data["nifty_index"]["low"],
+                        self.user_data["nifty_index"]["high"],
+                    )
             else:
                 self.logger.info(
                     "Nifty at %f waiting for entry condition [%f, %f]",
@@ -126,10 +146,15 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                 ## Unsubscribe from the strikes
                 self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
                 self.feed_manager.stop()
+            else:
+                ## Log pnl updates every 15 seconds
+                if ohlcvt["t"] - self.displayed_time > 15:
+                    self.displayed_time = ohlcvt["t"]
+                    self.logger.debug("Current Pnl %.2f", self.get_pnl())
         elif self.entry(ohlcvt):
             ## Take strangle
             self.order_manager.place_short(self.strikes, self.tag)
-            self.order_manager.place_short_stop_loss(self.tag)
+            self.order_manager.place_short_stop_loss_v2(self.tag)
             ## due to some reson 5paisa on_order_placed not getting called, updated manually here
             self.add_executed_orders(
                 {
@@ -163,11 +188,11 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     def order_placed(self, order: dict, subsList: dict, user_data: dict):
         super().order_placed(order, subsList, user_data)
         ## user_data["order_update"] is a list of scrip codes removed from subscription
-        unsubscribeList = user_data["order_update"]
-        if len(unsubscribeList) == 1:
+        unsubscribe_list = user_data["order_update"]
+        if len(unsubscribe_list) == 1:
             all_executed_orders = self.get_all_executed_orders()
             ## Get the scrip code that was removed from subscription
-            scrip_code = unsubscribeList[0]
+            scrip_code = unsubscribe_list[0]
             ## Get the other scrip code from all_executed_orders
             other_scrip_code = [
                 code for code in all_executed_orders if code != scrip_code
@@ -196,6 +221,17 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         )
 
 
+argparser = argparse.ArgumentParser()
+argparser.add_argument("--closest_premium", type=float, default=12.0)
+argparser.add_argument("--sl_factor", type=float, default=1.40)
+argparser.add_argument("--qty", type=int, default=50)
+argparser.add_argument("--index_option", type=str, default="NIFTY")
+argparser.add_argument("--exchange_type", type=str, default="D")
+argparser.add_argument("--target_profit", type=float, default=100.0)
+argparser.add_argument("--target_loss", type=float, default=-100.0)
+argparser.add_argument("--wait_time", type=float, default=15.0)
+
+
 if __name__ == "__main__":
     ## Setup logging
     Client5Paisa.configure_logger("DEBUG")
@@ -203,14 +239,19 @@ if __name__ == "__main__":
     client = Client5Paisa("creds.json")
     client.login()
 
+    args = argparser.parse_args()
     ## Set up Config
     config = {
-        "CLOSEST_PREMINUM": 12.0,
-        "SL_FACTOR": 1.40,
-        "QTY": 50,  ## 1 lot of NIFTY
-        "INDEX_OPTION": "NIFTY",
-        "exchangeType": "D",
+        "CLOSEST_PREMINUM": args.closest_premium,
+        "SL_FACTOR": args.sl_factor,
+        "QTY": args.qty,
+        "INDEX_OPTION": args.index_option,
+        "exchangeType": args.exchange_type,
+        "target_profit": args.target_profit,
+        "target_loss": args.target_loss,
+        "wait_time": args.wait_time,
     }
+    ## Get config from argparse
     ## Create live feed and start the strategy monitor
     live_feed = live_feed_manager.LiveFeedManager(client, config)
     ## Create order manager

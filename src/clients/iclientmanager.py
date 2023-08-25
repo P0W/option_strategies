@@ -109,3 +109,12 @@ class IClientManager(ABC):
     @abstractmethod
     def fetch_market_depth(self, req_list: list):
         raise NotImplementedError
+    
+    @abstractmethod
+    def historical_data(self, exch: str, 
+                        exchange_segment: str, 
+                        scrip_code: int, 
+                        time_val: str, 
+                        from_val: str, 
+                        to_val: str):
+        raise NotImplementedError

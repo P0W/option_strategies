@@ -190,3 +190,12 @@ class Client(iclientmanager.IClientManager):
     ## @override
     def fetch_market_depth(self, _req_list: list):
         return {}
+    
+    ## @override
+    def historical_data(self, exch: str,
+                        exchange_segment: str,
+                        scrip_code: int,
+                        interval: str,
+                        start_date: str,
+                        end_date: str):
+        return {}

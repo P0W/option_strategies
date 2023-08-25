@@ -349,7 +349,6 @@ class OrderManager:
 
     def squareoff_sl_order(self, tag: str) -> None:
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
-        self.logger.info("Pending stop loss orders %s", json.dumps(sl_exchan_orders))
         self.client.cancel_bulk_order(sl_exchan_orders)
 
     def monitor_v2(self, target: float, tag: str, expiry_day: int) -> None:

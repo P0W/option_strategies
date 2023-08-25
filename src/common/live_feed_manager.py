@@ -217,26 +217,42 @@ class LiveFeedManager:
         user_data: dict = None,
         user_callback: Callable[[dict, list, dict], None] = None,
     ):
-        if not "order_update" in user_data:
-            user_data["order_update"] = []
-        if message["Status"] == "Fully Executed":
-            scrip_codes = [item["ScripCode"] for item in subscription_list]
-            if message["ScripCode"] in scrip_codes and message[
-                "RemoteOrderID"
-            ].startswith(
-                "sl"
-            ):  # Unsubscribe from the scrip only if sl is hit
-                if self.unsubscribe([message["ScripCode"]]):
-                    user_data["order_update"].append(message["ScripCode"])
+        try:
+            if not user_data:
+                user_data = {}
+            if "order_update" not in user_data:
+                user_data["order_update"] = []
+            if message["Status"] == "Fully Executed":
+                scrip_codes = [item["ScripCode"] for item in subscription_list]
+                if "RemoteOrderId" in message:
+                    if message["ScripCode"] in scrip_codes and message[
+                        "RemoteOrderId"
+                    ].startswith(
+                        "sl"
+                    ):  # Unsubscribe from the scrip only if sl is hit
+                        if self.unsubscribe([message["ScripCode"]]):
+                            user_data["order_update"].append(message["ScripCode"])
+                else:
+                    self.logger.debug(
+                        "RemoteOrderId not found in order update:%s",
+                        json.dumps(message, indent=2, sort_keys=True),
+                    )
 
-        elif message["Status"] == "Cancelled":
-            self.on_cancel_order(message)
-        elif message["Status"] == "SL Triggered":
-            self.on_sl_order(message)
-        else:
-            self.logger.info("Order update:%s", message)
-        if user_callback:
-            user_callback(message, subscription_list, user_data)
+            elif message["Status"] == "Cancelled":
+                self.on_cancel_order(message)
+            elif message["Status"] == "SL Triggered":
+                self.on_sl_order(message)
+            else:
+                self.logger.info("Order update:%s", message)
+            if user_callback:
+                user_callback(message, subscription_list, user_data)
+        except Exception as exp:
+            self.logger.error(
+                "Error processing order update:%s on subscription_list %s",
+                json.dumps(message, indent=2),
+                subscription_list,
+            )
+            self.logger.error(exp)
 
     @DeprecationWarning  # Doesn't work - Don't use
     def subscribe(self, scrip_codes: List[int]) -> bool:
@@ -253,16 +269,23 @@ class LiveFeedManager:
         return True
 
     def unsubscribe(self, scrip_codes: List[int]) -> bool:
-        with self.monitoring_lock:
-            unsubscribe_list = [
-                {"Exch": "N", "ExchType": self.exchange_type, "ScripCode": x}
-                for x in scrip_codes
-            ]
-            req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
-            self.client.send_data(req_data)
-            # update the original subscribe_list
-            self.req_list = [
-                item for item in self.req_list if item["ScripCode"] not in scrip_codes
-            ]
-            self.logger.info("Unsubscribed from scrips:%s", scrip_codes)
-        return True
+        try:
+            with self.monitoring_lock:
+                unsubscribe_list = [
+                    {"Exch": "N", "ExchType": self.exchange_type, "ScripCode": x}
+                    for x in scrip_codes
+                ]
+                req_data = self.client.Request_Feed("mf", "u", unsubscribe_list)
+                self.client.send_data(req_data)
+                # update the original subscribe_list
+                self.req_list = [
+                    item
+                    for item in self.req_list
+                    if item["ScripCode"] not in scrip_codes
+                ]
+                self.logger.info("Unsubscribed from scrips:%s", scrip_codes)
+            return True
+        except Exception as exp:
+            self.logger.error("Error unsubscribing from scrips:%s", scrip_codes)
+            self.logger.error(exp)
+            return False
