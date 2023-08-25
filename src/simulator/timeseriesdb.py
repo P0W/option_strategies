@@ -2,6 +2,7 @@ import logging
 import psycopg2
 from psycopg2.extras import execute_values
 
+
 class TimescaleDB:
     def __init__(self, db_params):
         self.db_params = db_params
