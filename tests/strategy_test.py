@@ -1,6 +1,7 @@
 ## Author : Prashant Srivastava
 # pylint: disable=redefined-outer-name
 import argparse
+import json
 import sys
 import time
 
@@ -37,16 +38,32 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.order_manager = order_manager
         self.feed_manager = feed_manager
 
+        ## This should be managed by base, by currently putting it here
+        self.position = False
+
         self.strikes = strikes
         self.target_profit = self.order_manager.config["target_profit"]
         self.sl_target = self.order_manager.config["target_loss"]
         self.qty = self.order_manager.config["QTY"]
         self.wait_time = self.order_manager.config["wait_time"]
+
+        ## Display all the config
+        self.logger.info("target_profit: %f", self.target_profit)
+        self.logger.info("target_loss: %f", self.sl_target)
+        self.logger.info("qty: %d", self.qty)
+        self.logger.info("wait_time: %f", self.wait_time)
+        self.logger.info("strikes: %s", json.dumps(self.strikes, indent=2))
+
+        ## Ask user if this looks good
+        self.logger.info("Press y to continue")
+        if input() != "y":
+            sys.exit(-1)
+
         self.displayed_time = time.time()
 
         self.user_data = {
             "nifty_index": {"low": -1.0, "high": -1.0},
-            "start_time": time.time(),
+            "start_time": self.displayed_time,
         }
         self.ltp = {}
 
@@ -58,12 +75,26 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## @override
     ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
     ## If yes, exit the trade
-    def exit(self, ohlcvt: dict) -> bool:
+    def exit(self, _ohlcvt: dict) -> bool:
+        shall_exit = False
         if self.is_in_position():
             pnl = self.get_pnl()
-            if pnl and pnl >= self.target_profit or pnl <= self.sl_target:
-                return True
-        return False
+            if pnl:
+                if pnl > self.target_profit:
+                    self.logger.info("Target Profit Hit at %f", pnl)
+                    shall_exit = True
+                elif pnl <= self.sl_target:
+                    self.logger.info("Stop Loss Hit at %f", pnl)
+                    shall_exit = True
+                if shall_exit:
+                    self.logger.info(
+                        "Executed Orders: %s",
+                        json.dumps(self.get_all_executed_orders(), indent=2),
+                    )
+        return shall_exit
+
+    def is_in_position(self):
+        return self.position
 
     ## @override
     ## Entry Condtion: Wait for 15 minutes after the start of the strategy
@@ -131,50 +162,39 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
         self.ltp[code] = ltp
+        all_executed_orders = self.get_all_executed_orders()
         if self.is_in_position():
-            ## Check if we need to exit
-            if self.exit(ohlcvt):
-                ## Square off both legs. Square off needs the ltp of the scrip
-                all_executed_orders = self.get_all_executed_orders()
-                self.order_manager.squareoff(
-                    tag=self.tag,
-                    strikes={
-                        code: all_executed_orders[code]["ltp"]
-                        for code in all_executed_orders
-                    },
-                )
-                self.order_manager.squareoff_sl_order(tag=self.tag)
-                ## Unsubscribe from the strikes
-                self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
-                self.feed_manager.stop()
+            if all_executed_orders and len(all_executed_orders.keys()) == len(
+                self.strikes.keys()
+            ):
+                ## Check if we need to exit
+                if self.exit(ohlcvt):
+                    self.logger.info("Squaring off the trade")
+                    ## Square off both legs. Square off needs the ltp of the scrip
+                    self.order_manager.squareoff(
+                        tag=self.tag,
+                        strikes={
+                            code: all_executed_orders[code]["ltp"]
+                            for code in all_executed_orders
+                        },
+                    )
+                    self.logger.info("Cancelling off the sl order")
+                    self.order_manager.squareoff_sl_order(tag=self.tag)
+                    ## Unsubscribe from the strikes
+                    self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
+                    self.feed_manager.stop()
+                else:
+                    ## Log pnl updates every 15 seconds
+                    if ohlcvt["t"] - self.displayed_time > 15:
+                        self.displayed_time = ohlcvt["t"]
+                        self.logger.debug("Current Pnl %.2f", self.get_pnl())
             else:
-                ## Log pnl updates every 15 seconds
-                if ohlcvt["t"] - self.displayed_time > 15:
-                    self.displayed_time = ohlcvt["t"]
-                    self.logger.debug("Current Pnl %.2f", self.get_pnl())
+                self.logger.info("Waiting for order to be executed")
         elif self.entry(ohlcvt):
             ## Take strangle
             self.order_manager.place_short(self.strikes, self.tag)
             self.order_manager.place_short_stop_loss_v2(self.tag)
-            ## due to some reson 5paisa on_order_placed not getting called, updated manually here
-            self.add_executed_orders(
-                {
-                    "ScripCode": self.strikes["ce_code"],
-                    "rate": self.ltp[self.strikes["ce_code"]],
-                    "qty": self.qty,
-                    "ltp": self.ltp[self.strikes["ce_code"]],
-                    "pnl": 0.0,
-                }
-            )
-            self.add_executed_orders(
-                {
-                    "ScripCode": self.strikes["pe_code"],
-                    "rate": self.ltp[self.strikes["pe_code"]],
-                    "qty": self.qty,
-                    "ltp": self.ltp[self.strikes["pe_code"]],
-                    "pnl": 0.0,
-                }
-            )
+            self.position = True
 
     ## @override
     ## Stop the feed manager. This is not required as the feed manager will
@@ -223,13 +243,13 @@ class StrangleStrategy(base_strategy.BaseStrategy):
 
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument("--closest_premium", type=float, default=12.0)
-argparser.add_argument("--sl_factor", type=float, default=1.40)
-argparser.add_argument("--qty", type=int, default=50)
+argparser.add_argument("--closest_premium", type=float, required=True)
+argparser.add_argument("--sl_factor", type=float, required=True)
+argparser.add_argument("--qty", type=int, required=True)
 argparser.add_argument("--index_option", type=str, default="NIFTY")
 argparser.add_argument("--exchange_type", type=str, default="D")
-argparser.add_argument("--target_profit", type=float, default=100.0)
-argparser.add_argument("--target_loss", type=float, default=-100.0)
+argparser.add_argument("--target_profit", type=float, required=True)
+argparser.add_argument("--target_loss", type=float, required=True)
 argparser.add_argument("--wait_time", type=float, default=15.0)
 
 
@@ -238,9 +258,10 @@ if __name__ == "__main__":
     # if help is used, exit
     try:
         if args.help:
-            sys.exit(0)
+            sys.exit(-1)
     except Exception:
         pass
+
     ## Setup logging
     Client5Paisa.configure_logger("DEBUG")
     ## Setup client
@@ -279,3 +300,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
         strategy.stop()
+    sys.exit(0)

@@ -69,19 +69,34 @@ class BaseStrategy(ABC):
 
     @abstractmethod
     def order_placed(self, order: dict, _subs_list: dict, user_data: dict):
-        # This will be called for "Fully Executed"" only
-        # check if order["ScripCode"] is in self.scrip_codes
-        # if yes, add to self.executed_orders
-        self.logger.info("%s %s", json.dumps(order, indent=2), self.scrip_codes)
-        if order["ScripCode"] in self.scrip_codes:
+        # If this is a fresh order and is fully executed
+        # Fresh order : order which is not square off order or stop loss order
+        fresh_orders = (
+            not (
+                order["RemoteOrderId"].startswith("sl")
+                or order["RemoteOrderId"].startswith("sq")
+            )
+            and order["Status"] == "Fully Executed"
+        )
+        if fresh_orders and order["ScripCode"] in self.scrip_codes:
             if not self.executed_orders:
                 self.executed_orders = {}
-            self.executed_orders[order["ScripCode"]] = {
-                "rate": order["Price"],
-                "qty": order["Qty"],
-                "ltp": order["Price"],
-                "pnl": 0.0,
-            }
+            if order["ScripCode"] not in self.executed_orders:
+                self.executed_orders[order["ScripCode"]] = {
+                    "rate": order["Price"],
+                    "qty": order["Qty"],
+                    "ltp": order["Price"],
+                    "pnl": 0.0,
+                }
+                self.logger.info(
+                    "New updated executed_orders %s",
+                    json.dumps(self.executed_orders, indent=2),
+                )
+            else:
+                self.logger.warning(
+                    "Received a very late/duplicate order update from broker? %s",
+                    json.dumps(self.executed_orders, indent=2),
+                )
 
     @abstractmethod
     def stop(self):

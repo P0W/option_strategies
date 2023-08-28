@@ -3,6 +3,7 @@ import json
 import logging
 import queue
 import threading
+import time
 from typing import Callable
 from typing import List
 
@@ -86,8 +87,12 @@ class LiveFeedManager:
                 self.logger.error("WebSocket error: %s", err)
 
             def process_msg(msg: dict):
+                qsize = 0
                 if "Status" in msg:
                     self.order_queue.put(msg)
+                    qsize = self.order_queue.qsize()
+                    if qsize > 1:
+                        self.logger.debug("Order Queue Size:%d", qsize)
                 elif "LastRate" in msg:
                     # convert the json message to a list of dict only ohlcv
                     # values
@@ -104,6 +109,9 @@ class LiveFeedManager:
                             "ChgPcnt": msg["ChgPcnt"],
                         }
                     )
+                    qsize = self.callback_queue.qsize()
+                    if qsize > 1:
+                        self.logger.debug("Tick Queue Size:%d", qsize)
 
             def on_message(_ws, message):
                 json_msg = json.loads(message)
@@ -217,6 +225,8 @@ class LiveFeedManager:
         user_data: dict = None,
         user_callback: Callable[[dict, list, dict], None] = None,
     ):
+        # pylint: disable=too-many-nested-blocks
+        start_time = time.time()
         try:
             if not user_data:
                 user_data = {}
@@ -245,7 +255,11 @@ class LiveFeedManager:
             else:
                 self.logger.info("Order update:%s", message)
             if user_callback:
-                user_callback(message, subscription_list, user_data)
+                user_callback(
+                    message,
+                    subscription_list,
+                    json.dumps(message, indent=2, sort_keys=True),
+                )
         except Exception as exp:
             self.logger.error(
                 "Error processing order update:%s on subscription_list %s",
@@ -253,6 +267,10 @@ class LiveFeedManager:
                 subscription_list,
             )
             self.logger.error(exp)
+        finally:
+            self.logger.debug(
+                "Order update processed in %.2f seconds", time.time() - start_time
+            )
 
     @DeprecationWarning  # Doesn't work - Don't use
     def subscribe(self, scrip_codes: List[int]) -> bool:

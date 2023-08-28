@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 strike_mgr = StrikesManager(client, {})
 
 
+# pylint: disable=duplicate-code
 def get_strikes_of_interest(index_info: dict):
     this_expiry = strike_mgr.get_current_expiry(index_info["index"])
     contracts = client.get_option_chain(
