@@ -46,10 +46,8 @@ def get_strikes_of_interest(index_info: dict):
     return codes_of_interest
 
 
-def insert_to_timescaledb(db_params: dict, index_info: dict):
-    timescale_db = timeseriesdb.TimescaleDB(db_params)
-    timescale_db.create_database()
-    timescale_db.create_tables(db_params["dbname"])
+def insert_to_timescaledb(timescaledb: timeseriesdb.TimescaleDB, index_info: dict):
+    # sys.exit(0)
 
     codes_of_interest = get_strikes_of_interest(index_info)
     for scrip_details in codes_of_interest:
@@ -71,23 +69,27 @@ def insert_to_timescaledb(db_params: dict, index_info: dict):
         )
         logger.info("Inserting data into timescaledb %s", scrip_details["name"])
         start_time = time.time()
-        timescale_db.insert_option_data_from_dataframe(
+        timescaledb.insert_option_data_from_dataframe(
             data_frame, scrip_details["name"]
         )
         end_time = time.time()
         logger.info("Time taken to insert data: %.2f", end_time - start_time)
 
-    timescale_db.disconnect()
-
 
 if __name__ == "__main__":
+    db_config = {
+        "dbname": "option_db",
+        "user": "admin",
+        "password": "admin",
+        "host": "localhost",
+        "port": "5432",
+    }
+    timescale_db = timeseriesdb.TimescaleDB(db_config)
+    # timescale_db.drop_database()
+    timescale_db.create_database()
+    timescale_db.create_tables()
+    timescale_db.connect(db_config["dbname"])
+
     for indices in ["NIFTY", "BANKNIFTY", "FINNIFTY"]:
-        db_config = {
-            "dbname": indices.lower(),
-            "user": "admin",
-            "password": "admin",
-            "host": "localhost",
-            "port": "5432",
-        }
-        index_config = {"index": db_config["dbname"].upper(), "high": 25, "low": 5}
-        insert_to_timescaledb(db_config, index_config)
+        index_config = {"index": indices.upper(), "high": 25, "low": 5}
+        insert_to_timescaledb(timescale_db, index_config)

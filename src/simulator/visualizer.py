@@ -8,7 +8,11 @@ from mplfinance.original_flavor import candlestick_ohlc
 def plot_candlestick(strike_id, start_time, end_time, interval):
     # Connect to your PostgreSQL database
     conn = psycopg2.connect(
-        dbname="nifty", user="admin", password="admin", host="localhost", port="5432"
+        dbname="option_db",
+        user="admin",
+        password="admin",
+        host="localhost",
+        port="5432",
     )
 
     # Define the SQL query to retrieve the candlestick data
@@ -80,8 +84,8 @@ def plot_candlestick(strike_id, start_time, end_time, interval):
 
 # Example usage
 plot_candlestick(
-    strike_id=2,
+    strike_id=19,
     start_time="2023-08-18 09:00:00",
     end_time="2023-08-24 15:30:00",
-    interval="1 day",
+    interval="1 hour",
 )  # 5 minutes interval

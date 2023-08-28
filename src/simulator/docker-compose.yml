@@ -27,4 +27,6 @@ services:
     environment:
       POSTGRES_USER: 'admin'
       POSTGRES_PASSWORD: 'admin'
+    volumes:
+      - /data:/var/lib/postgresql/data
   

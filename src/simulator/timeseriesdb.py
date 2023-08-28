@@ -1,7 +1,7 @@
 import logging
 import psycopg2
 from psycopg2.extras import execute_values
-
+from psycopg2.errors import UniqueViolation # pylint: disable=no-name-in-module
 
 class TimescaleDB:
     def __init__(self, db_params):
@@ -45,8 +45,10 @@ class TimescaleDB:
             self.logger.info(
                 "Database '%s' created successfully.", self.db_params["dbname"]
             )
-        except Exception:
-            self.logger.info("Database '%s' already exists.", self.db_params["dbname"])
+            self.disconnect()
+        except Exception as exp:
+            self.logger.error("Database '%s' already exists.", self.db_params["dbname"])
+            self.logger.error(exp)
 
     def drop_database(self):
         self.connect()
@@ -67,49 +69,54 @@ class TimescaleDB:
             self.logger.info("Database '%s' does not exist.", self.db_params["dbname"])
         self.disconnect()
 
-    def create_tables(self, db_name=None):
-        self.connect(db_name)
+    def create_tables(self):
+        ## Reset cursor and connection
+        self.connect(self.db_params["dbname"])
+        create_tables = """
+            CREATE TABLE IF NOT EXISTS strikes (
+                        strike_id SERIAL PRIMARY KEY,
+                        strike_name TEXT UNIQUE
+                    );
+        
+            CREATE TABLE IF NOT EXISTS option_data (
+                        timestamp TIMESTAMPTZ NOT NULL,
+                        strike_id INT,
+                        open NUMERIC,
+                        high NUMERIC,
+                        low NUMERIC,
+                        close NUMERIC,
+                        volume bigint,
+                        PRIMARY KEY (strike_id, timestamp),
+                        FOREIGN KEY (strike_id) REFERENCES strikes (strike_id)
+                    );
 
-        create_strikes_table = """
-        CREATE TABLE IF NOT EXISTS strikes (
-            strike_id SERIAL PRIMARY KEY,
-            strike_name TEXT UNIQUE
-        );
-        """
+            SELECT create_hypertable('option_data', 'timestamp', 
+                chunk_time_interval => interval '1 minute',
+                if_not_exists => TRUE);
+            """
 
-        create_option_data_table = """
-        CREATE TABLE IF NOT EXISTS option_data (
-            record_id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMPTZ NOT NULL,
-            strike_id INT,
-            open NUMERIC,
-            high NUMERIC,
-            low NUMERIC,
-            close NUMERIC,
-            volume NUMERIC,
-            UNIQUE (timestamp, strike_id),  -- Unique constraint to prevent duplicate timestamps per strike
-            FOREIGN KEY (strike_id) REFERENCES strikes (strike_id)
-        );
-        """
-
-        self.cursor.execute(create_strikes_table)
-        self.cursor.execute(create_option_data_table)
+        self.cursor.execute(create_tables)
         self.connection.commit()
         self.logger.info("Tables created or already exist.")
 
     def insert_option_data_from_dataframe(self, option_dataframe, strike_name):
-        self.connect()
-
-        insert_strike_query = """
-        INSERT INTO strikes (strike_name)
-        VALUES (%s)
-        RETURNING strike_id;
-        """
-        self.cursor.execute(insert_strike_query, (strike_name,))
-        strike_id = self.cursor.fetchone()[0]
+        self.connect(self.db_params["dbname"])
+        strike_id = None
+        try:
+            insert_strike_query = """
+            INSERT INTO strikes (strike_name)
+            VALUES (%s)
+            RETURNING strike_id;
+            """
+            self.cursor.execute(insert_strike_query, (strike_name,))
+            strike_id = self.cursor.fetchone()[0]
+        except UniqueViolation:
+            self.logger.info("Strike name '%s' already exists.", strike_name)
+            find_query = "select strike_id from strikes where strike_name = %s;"
+            self.cursor.execute(find_query, (strike_name,))
 
         if strike_id is None:
-            self.logger.info("Invalid stock_symbol or strike_name.")
+            self.logger.info("Invalid strike name: %s", strike_name)
             self.disconnect()
             return
 
@@ -138,8 +145,11 @@ class TimescaleDB:
         INSERT INTO option_data (timestamp, strike_id, open, high, low, close, volume)
         VALUES %s;
         """
-        execute_values(
-            self.cursor, insert_query, option_data, template=None, page_size=1000
-        )
-        self.connection.commit()
-        self.logger.info("Inserted %d records.", len(option_data))
+        try:
+            execute_values(
+                self.cursor, insert_query, option_data, template=None, page_size=50
+            )
+            self.connection.commit()
+            self.logger.info("Inserted %d records.", len(option_data))
+        except UniqueViolation:
+            self.logger.info("Data already exists for strike name '%s'.", strike_name)

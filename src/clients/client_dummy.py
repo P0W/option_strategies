@@ -89,7 +89,7 @@ class Client(iclientmanager.IClientManager):
                 "ExchOrderID": str(int(time.time()))[-16:],
                 "Status": "Fully Executed",
                 "ScripCode": order["ScripCode"],
-                "RemoteOrderID": order["RemoteOrderID"],
+                "RemoteOrderId": order["RemoteOrderId"],
                 "Qty": order["Qty"],
                 "Rate": order["Price"],
                 "Price": order["Price"],
@@ -101,13 +101,13 @@ class Client(iclientmanager.IClientManager):
             }
         )
         # Do not immediately send the order placed message when its sl order
-        if not order["RemoteOrderID"].startswith("sl"):
+        if not order["RemoteOrderId"].startswith("sl"):
             self.send_data(
                 {
                     "placed": order["ScripCode"],
                     "Price": order["Price"],
                     "Qty": order["Qty"],
-                    "RemoteOrderID": order["RemoteOrderID"],
+                    "RemoteOrderId": order["RemoteOrderId"],
                 }
             )
         return {"Message": "Success"}
@@ -117,7 +117,7 @@ class Client(iclientmanager.IClientManager):
         # find the order in the database with each items in req_list matching
         # the "RemoteOrderID" field
         for req in req_list:
-            order = self.collection.find_one({"RemoteOrderID": req["RemoteOrderID"]})
+            order = self.collection.find_one({"RemoteOrderId": req["RemoteOrderId"]})
             if order:
                 # change ExchOrderID to int(ExchOrderID)
                 order["ExchOrderID"] = int(order["ExchOrderID"])

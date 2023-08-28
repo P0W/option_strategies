@@ -39,20 +39,19 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.feed_manager = feed_manager
 
         ## This should be managed by base, by currently putting it here
-        self.position = False
 
         self.strikes = strikes
-        self.target_profit = self.order_manager.config["target_profit"]
-        self.sl_target = self.order_manager.config["target_loss"]
+        self.set_mtm_target(self.order_manager.config["target_profit"])
+        self.set_mtm_stop_loss(self.order_manager.config["target_loss"])
         self.qty = self.order_manager.config["QTY"]
         self.wait_time = self.order_manager.config["wait_time"]
 
         ## Display all the config
-        self.logger.info("target_profit: %f", self.target_profit)
-        self.logger.info("target_loss: %f", self.sl_target)
+        self.logger.info("target_profit: %f", self.get_mtm_target())
+        self.logger.info("target_loss: %f", self.get_mtm_stop_loss())
         self.logger.info("qty: %d", self.qty)
-        self.logger.info("wait_time: %f", self.wait_time)
         self.logger.info("strikes: %s", json.dumps(self.strikes, indent=2))
+        self.logger.info("wait_time: %f", self.wait_time)
 
         ## Ask user if this looks good
         self.logger.info("Press y to continue")
@@ -69,32 +68,8 @@ class StrangleStrategy(base_strategy.BaseStrategy):
 
         self.logger.info("Strangle Strategy Initiated")
 
-    def get_leg_pnl(self, code: int, avg: float, qty: int, ltp: float):
+    def get_leg_pnl(self, _code: int, avg: float, qty: int, ltp: float):
         return (avg - ltp) * qty
-
-    ## @override
-    ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
-    ## If yes, exit the trade
-    def exit(self, _ohlcvt: dict) -> bool:
-        shall_exit = False
-        if self.is_in_position():
-            pnl = self.get_pnl()
-            if pnl:
-                if pnl > self.target_profit:
-                    self.logger.info("Target Profit Hit at %f", pnl)
-                    shall_exit = True
-                elif pnl <= self.sl_target:
-                    self.logger.info("Stop Loss Hit at %f", pnl)
-                    shall_exit = True
-                if shall_exit:
-                    self.logger.info(
-                        "Executed Orders: %s",
-                        json.dumps(self.get_all_executed_orders(), indent=2),
-                    )
-        return shall_exit
-
-    def is_in_position(self):
-        return self.position
 
     ## @override
     ## Entry Condtion: Wait for 15 minutes after the start of the strategy
@@ -164,9 +139,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         self.ltp[code] = ltp
         all_executed_orders = self.get_all_executed_orders()
         if self.is_in_position():
-            if all_executed_orders and len(all_executed_orders.keys()) == len(
-                self.strikes.keys()
-            ):
+            if self.get_strategy_state() == base_strategy.StrategyState.EXECUTED:
                 ## Check if we need to exit
                 if self.exit(ohlcvt):
                     self.logger.info("Squaring off the trade")
@@ -180,6 +153,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     )
                     self.logger.info("Cancelling off the sl order")
                     self.order_manager.squareoff_sl_order(tag=self.tag)
+                    self.set_strategy_state(base_strategy.StrategyState.SQUAREDOFF)
                     ## Unsubscribe from the strikes
                     self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
                     self.feed_manager.stop()
@@ -194,7 +168,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
             ## Take strangle
             self.order_manager.place_short(self.strikes, self.tag)
             self.order_manager.place_short_stop_loss_v2(self.tag)
-            self.position = True
+            self.set_order_state(base_strategy.OrderState.PLACED)
 
     ## @override
     ## Stop the feed manager. This is not required as the feed manager will

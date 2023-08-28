@@ -1,9 +1,18 @@
 # Author : Prashant Srivastava
+from enum import Enum
 import json
 import logging
+import math
 import time
 from abc import ABC
 from abc import abstractmethod
+
+
+class StategyState(Enum):
+    WAITING = 0
+    PLACED = 1
+    EXECUTED = 2
+    SQUAREDOFF = 3
 
 
 class BaseStrategy(ABC):
@@ -13,18 +22,45 @@ class BaseStrategy(ABC):
         self.logger = logging.getLogger(__name__)
         self.executed_orders = None
         self.tag = f"{self.name.lower()}{int(time.time())}"
+        self.target_mtm_profit = math.inf
+        self.target_mtm_loss = -math.inf
+        self.startegy_state = StategyState.WAITING
 
-    @abstractmethod
-    def entry(self, ohlcvt: dict) -> bool:
-        raise NotImplementedError
+    def set_mtm_target(self, profit: float):
+        self.target_mtm_profit = profit
 
-    @abstractmethod
-    def exit(self, ohlcvt: dict) -> bool:
-        raise NotImplementedError
+    def set_mtm_stop_loss(self, loss: float):
+        self.target_mtm_loss = loss
 
-    @abstractmethod
-    def get_leg_pnl(self, code: int, avg: float, qty: int, ltp: float):
-        raise NotImplementedError
+    def get_mtm_target(self):
+        return self.target_mtm_profit
+
+    def get_mtm_stop_loss(self):
+        return self.target_mtm_loss
+
+    def set_strategy_state(self, state: StategyState):
+        self.startegy_state = state
+
+    def get_strategy_state(self):
+        return self.startegy_state
+
+    def exit(self, _ohlcvt: dict) -> bool:
+        shall_exit = False
+        if self.is_in_position():
+            pnl = self.get_pnl()
+            if pnl:
+                if pnl > self.get_mtm_target():
+                    self.logger.info("Target Profit Hit at %f", pnl)
+                    shall_exit = True
+                elif pnl <= self.get_mtm_stop_loss():
+                    self.logger.info("Target Stop Loss Hit at %f", pnl)
+                    shall_exit = True
+                if shall_exit:
+                    self.logger.info(
+                        "Executed Orders: %s",
+                        json.dumps(self.get_all_executed_orders(), indent=2),
+                    )
+        return shall_exit
 
     def get_pnl(self):
         # sum all the pnl of each leg
@@ -36,7 +72,7 @@ class BaseStrategy(ABC):
         return total_pnl
 
     def is_in_position(self):
-        return self.executed_orders is not None
+        return self.get_strategy_state() in [StategyState.EXECUTED, StategyState.PLACED]
 
     def get_executed_order(self, code) -> (float, int):  # Avg, Qty
         if code not in self.executed_orders:
@@ -46,8 +82,7 @@ class BaseStrategy(ABC):
     def get_all_executed_orders(self):
         return self.executed_orders
 
-    @abstractmethod
-    def run(self, ohlcvt: dict, user_data: dict = None):
+    def run(self, ohlcvt: dict, _user_data: dict = None):
         # Following is done to update the ltp of the scrip in the
         # executed_orders only
         if self.is_in_position():
@@ -62,13 +97,7 @@ class BaseStrategy(ABC):
                     self.executed_orders[code]["ltp"],
                 )
 
-    def add_executed_orders(self, executed_orders: dict):
-        if not self.executed_orders:
-            self.executed_orders = {}
-        self.executed_orders[executed_orders["ScripCode"]] = executed_orders
-
-    @abstractmethod
-    def order_placed(self, order: dict, _subs_list: dict, user_data: dict):
+    def order_placed(self, order: dict, _subs_list: dict, _user_data: dict):
         # If this is a fresh order and is fully executed
         # Fresh order : order which is not square off order or stop loss order
         fresh_orders = (
@@ -92,6 +121,8 @@ class BaseStrategy(ABC):
                     "New updated executed_orders %s",
                     json.dumps(self.executed_orders, indent=2),
                 )
+                if len(self.executed_orders.keys()) == len(self.scrip_codes):
+                    self.set_strategy_state(StategyState.EXECUTED)
             else:
                 self.logger.warning(
                     "Received a very late/duplicate order update from broker? %s",
@@ -104,4 +135,12 @@ class BaseStrategy(ABC):
 
     @abstractmethod
     def start(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def entry(self, ohlcvt: dict) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_leg_pnl(self, code: int, avg: float, qty: int, ltp: float):
         raise NotImplementedError
