@@ -1,7 +1,8 @@
 import logging
 import psycopg2
 from psycopg2.extras import execute_values
-from psycopg2.errors import UniqueViolation # pylint: disable=no-name-in-module
+from psycopg2.errors import UniqueViolation  # pylint: disable=no-name-in-module
+
 
 class TimescaleDB:
     def __init__(self, db_params):

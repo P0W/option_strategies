@@ -69,9 +69,7 @@ def insert_to_timescaledb(timescaledb: timeseriesdb.TimescaleDB, index_info: dic
         )
         logger.info("Inserting data into timescaledb %s", scrip_details["name"])
         start_time = time.time()
-        timescaledb.insert_option_data_from_dataframe(
-            data_frame, scrip_details["name"]
-        )
+        timescaledb.insert_option_data_from_dataframe(data_frame, scrip_details["name"])
         end_time = time.time()
         logger.info("Time taken to insert data: %.2f", end_time - start_time)
 
