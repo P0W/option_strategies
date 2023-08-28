@@ -47,8 +47,6 @@ def get_strikes_of_interest(index_info: dict):
 
 
 def insert_to_timescaledb(timescaledb: timeseriesdb.TimescaleDB, index_info: dict):
-    # sys.exit(0)
-
     codes_of_interest = get_strikes_of_interest(index_info)
     for scrip_details in codes_of_interest:
         seven_days_before = (
@@ -83,7 +81,7 @@ if __name__ == "__main__":
         "port": "5432",
     }
     timescale_db = timeseriesdb.TimescaleDB(db_config)
-    # timescale_db.drop_database()
+    # timescale_db.drop_database() # Uncomment this to drop the database
     timescale_db.create_database()
     timescale_db.create_tables()
     timescale_db.connect(db_config["dbname"])
