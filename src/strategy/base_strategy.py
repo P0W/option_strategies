@@ -121,7 +121,7 @@ class BaseStrategy(ABC):
                     "New updated executed_orders %s",
                     json.dumps(self.executed_orders, indent=2),
                 )
-                if len(self.executed_orders.keys()) == len(self.scrip_codes):
+                if len(self.executed_orders.keys()) == len(self.scrip_codes.keys()):
                     self.set_strategy_state(StategyState.EXECUTED)
             else:
                 self.logger.warning(
