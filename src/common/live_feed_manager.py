@@ -4,6 +4,7 @@ import logging
 import queue
 import threading
 import time
+import traceback
 from typing import Callable
 from typing import List
 
@@ -131,6 +132,8 @@ class LiveFeedManager:
                         self.logger.error("Message: %s", json_msg)
                 except Exception as exp:
                     self.logger.error("Error processing message: %s", exp)
+                    self.logger.error("Stack Trace :%s", traceback.format_exc())
+                    self.stop()
 
             if LiveFeedManager.NIFTY_INDEX in scrip_codes:
                 self.req_list.append(
@@ -255,11 +258,7 @@ class LiveFeedManager:
             else:
                 self.logger.info("Order update:%s", message)
             if user_callback:
-                user_callback(
-                    message,
-                    subscription_list,
-                    json.dumps(message, indent=2, sort_keys=True),
-                )
+                user_callback(message, subscription_list, user_data)
         except Exception as exp:
             self.logger.error(
                 "Error processing order update:%s on subscription_list %s",
@@ -267,6 +266,9 @@ class LiveFeedManager:
                 subscription_list,
             )
             self.logger.error(exp)
+            ## show stack trace
+            self.logger.error("Stack Trace :%s", traceback.format_exc())
+            self.stop()
         finally:
             self.logger.debug(
                 "Order update processed in %.2f seconds", time.time() - start_time
@@ -306,4 +308,6 @@ class LiveFeedManager:
         except Exception as exp:
             self.logger.error("Error unsubscribing from scrips:%s", scrip_codes)
             self.logger.error(exp)
+            self.logger.error("Stack Trace :%s", traceback.format_exc())
+            self.stop()
             return False

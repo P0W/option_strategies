@@ -8,11 +8,12 @@ from abc import ABC
 from abc import abstractmethod
 
 
-class StategyState(Enum):
+class StrategyState(Enum):
     WAITING = 0
     PLACED = 1
     EXECUTED = 2
     SQUAREDOFF = 3
+    STOPPED = 4
 
 
 class BaseStrategy(ABC):
@@ -24,7 +25,7 @@ class BaseStrategy(ABC):
         self.tag = f"{self.name.lower()}{int(time.time())}"
         self.target_mtm_profit = math.inf
         self.target_mtm_loss = -math.inf
-        self.startegy_state = StategyState.WAITING
+        self.startegy_state = StrategyState.WAITING
 
     def set_mtm_target(self, profit: float):
         self.target_mtm_profit = profit
@@ -38,7 +39,8 @@ class BaseStrategy(ABC):
     def get_mtm_stop_loss(self):
         return self.target_mtm_loss
 
-    def set_strategy_state(self, state: StategyState):
+    def set_strategy_state(self, state: StrategyState):
+        self.logger.info("Strategy state changed to %s", state)
         self.startegy_state = state
 
     def get_strategy_state(self):
@@ -72,7 +74,10 @@ class BaseStrategy(ABC):
         return total_pnl
 
     def is_in_position(self):
-        return self.get_strategy_state() in [StategyState.EXECUTED, StategyState.PLACED]
+        return self.get_strategy_state() in [
+            StrategyState.EXECUTED,
+            StrategyState.PLACED,
+        ]
 
     def get_executed_order(self, code) -> (float, int):  # Avg, Qty
         if code not in self.executed_orders:
@@ -85,7 +90,7 @@ class BaseStrategy(ABC):
     def run(self, ohlcvt: dict, _user_data: dict = None):
         # Following is done to update the ltp of the scrip in the
         # executed_orders only
-        if self.is_in_position():
+        if self.get_strategy_state() == StrategyState.EXECUTED:
             ltp = ohlcvt["c"]
             code = ohlcvt["code"]
             if code in self.executed_orders:
@@ -121,8 +126,22 @@ class BaseStrategy(ABC):
                     "New updated executed_orders %s",
                     json.dumps(self.executed_orders, indent=2),
                 )
-                if len(self.executed_orders.keys()) == len(self.scrip_codes.keys()):
-                    self.set_strategy_state(StategyState.EXECUTED)
+                all_executed = True
+                for scrip_code in self.executed_orders:
+                    if int(scrip_code) not in self.scrip_codes:
+                        self.logger.warning(
+                            "Received order for scrip code %d \
+                                which is not in the strategy scrip codes %s",
+                            int(scrip_code),
+                            self.scrip_codes,
+                        )
+                        all_executed = False
+                        break
+                if all_executed:
+                    self.logger.debug(
+                        "All orders executed, setting strategy state to executed"
+                    )
+                    self.set_strategy_state(StrategyState.EXECUTED)
             else:
                 self.logger.warning(
                     "Received a very late/duplicate order update from broker? %s",

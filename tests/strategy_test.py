@@ -142,6 +142,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
             if self.get_strategy_state() == base_strategy.StrategyState.EXECUTED:
                 ## Check if we need to exit
                 if self.exit(ohlcvt):
+                    self.set_strategy_state(base_strategy.StrategyState.SQUAREDOFF)
                     self.logger.info("Squaring off the trade")
                     ## Square off both legs. Square off needs the ltp of the scrip
                     self.order_manager.squareoff(
@@ -153,7 +154,6 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     )
                     self.logger.info("Cancelling off the sl order")
                     self.order_manager.squareoff_sl_order(tag=self.tag)
-                    self.set_strategy_state(base_strategy.StrategyState.SQUAREDOFF)
                     ## Unsubscribe from the strikes
                     self.feed_manager.unsubscribe(scrip_codes=self.scrip_codes)
                     self.feed_manager.stop()
@@ -163,17 +163,20 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                         self.displayed_time = ohlcvt["t"]
                         self.logger.debug("Current Pnl %.2f", self.get_pnl())
             else:
-                self.logger.info("Waiting for order to be executed")
+                self.logger.info(
+                    "Waiting for order to be executed %s", self.get_strategy_state()
+                )
         elif self.entry(ohlcvt):
+            self.set_strategy_state(base_strategy.StrategyState.PLACED)
             ## Take strangle
             self.order_manager.place_short(self.strikes, self.tag)
             self.order_manager.place_short_stop_loss_v2(self.tag)
-            self.set_order_state(base_strategy.OrderState.PLACED)
 
     ## @override
     ## Stop the feed manager. This is not required as the feed manager will
     ## stop automatically after 15 seconds if no scrip is subscribed
     def stop(self):
+        self.set_strategy_state(base_strategy.StrategyState.STOPPED)
         self.feed_manager.stop()
         return super().stop()
 
@@ -262,7 +265,8 @@ if __name__ == "__main__":
     sm = strikes_manager.StrikesManager(client, config)
     try:
         strikes = sm.strangle_strikes(
-            closest_price_thresh=config["CLOSEST_PREMINUM"], index="NIFTY"
+            closest_price_thresh=config["CLOSEST_PREMINUM"],
+            index=config["INDEX_OPTION"],
         )
         strategy = StrangleStrategy(
             strikes=strikes,
