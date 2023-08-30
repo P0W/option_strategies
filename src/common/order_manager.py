@@ -3,9 +3,11 @@ import datetime
 import json
 import logging
 import time
+import redis
 
 from src.clients.iclientmanager import IClientManager
 from src.common import live_feed_manager
+from src.common import db_manager
 
 
 # This class is responsible for placing orders, monitoring them and squaring off
@@ -18,6 +20,9 @@ class OrderManager:
         self.live_feed_mgr = None
         self.target_achieved = False
         self.exchange_type = "D"
+        self.order_repo = db_manager.OrderRepository(
+            db_manager.DatabaseConnection(), redis.Redis(host="127.0.0.1")
+        )
 
     def set_exchange_type(self, exch_type: str) -> str:
         self.exchange_type = exch_type
@@ -48,7 +53,21 @@ class OrderManager:
             )
             if order_status["Message"] == "Success":
                 self.logger.debug("%s_done", item)
-            time.sleep(2)
+            ## Write to DB
+            self.order_repo.insert_order(
+                db_manager.Order(
+                    code=scrip_code,
+                    quantity=self.config["QTY"],
+                    buy_sell="S",
+                    status=db_manager.OrderStatus.PLACED,
+                    order_type=db_manager.OrderType.REGULAR,
+                    exchange_order_id=order_status["ExchOrderID"],
+                    remote_order_id=tag,
+                    avg_price=0.0,  ## TODO: Get LTP # pylint: disable=fixme
+                    comment="Placed from app",
+                )
+            )
+            time.sleep(1)
 
     def aggregate_sl_orders(self, tag: str, sl_factor=1.65):
         sl_details = None
@@ -150,6 +169,20 @@ class OrderManager:
                 StopLossPrice=detail["sl"],
                 IsIntraday=True,
                 RemoteOrderID="sl" + tag,
+            )
+            ## Write to DB
+            self.order_repo.insert_order(
+                db_manager.Order(
+                    code=scrip_code,
+                    quantity=self.config["QTY"],
+                    buy_sell="S",
+                    status=db_manager.OrderStatus.PLACED,
+                    order_type=db_manager.OrderType.STOPLOSS,
+                    exchange_order_id=order_status["ExchOrderID"],
+                    remote_order_id="sl" + tag,
+                    avg_price=0.0,  ## TODO: Get LTP # pylint: disable=fixme
+                    comment="Placed from app",
+                )
             )
             max_premium += detail["Premium"]
             max_loss -= detail["max_loss"]

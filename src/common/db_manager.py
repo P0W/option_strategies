@@ -20,6 +20,11 @@ class ExchangeType(Enum):
     BSE = "BSE"
 
 
+class OrderType(Enum):
+    REGULAR = "R"
+    STOPLOSS = "SL"
+
+
 class ExchangeSegmentType(Enum):
     DERIVATIVE = "Derivative"
     EQUITY = "Equity"
@@ -30,19 +35,21 @@ class ExchangeSegmentType(Enum):
 class Order:
     def __init__(
         self,
-        script_code: int,
+        code: int,
         quantity: int,
         buy_sell: str,
         status: OrderStatus,
-        order_type: str,
+        avg_price: float,
+        order_type: OrderType,
         comment: str = "",
         exchange_order_id: str = "",
         remote_order_id: str = "",
     ):
-        self.script_code = script_code
+        self.script_code = code
         self.quantity = quantity
         self.buy_sell = buy_sell
         self.status = status
+        self.avg_price = avg_price
         self.order_type = order_type
         self.comment = comment
         self.exchange_order_id = exchange_order_id
@@ -62,18 +69,23 @@ class OrderRepository:
             with self.connection:
                 cursor = self.connection.cursor()
                 sql = """
-                    INSERT INTO orders (script_code, quantity, buy_sell, status, order_type, comment)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO orders (remote_order_id, exchange_order_id, 
+                    script_code, quantity, buy_sell, avg_price, 
+                    status, order_type,  comment)
+                    VALUES (%s, %s, %s, %s, %s, %s,%s, %s,%s)
                     RETURNING order_id
                 """
                 cursor.execute(
                     sql,
                     (
+                        order.remote_order_id,
+                        order.exchange_order_id,
                         order.script_code,
                         order.quantity,
                         order.buy_sell,
+                        order.avg_price,
                         order.status.value,
-                        order.order_type,
+                        order.order_type.value,
                         order.comment,
                     ),
                 )
@@ -139,12 +151,13 @@ class OrderRepository:
             rows = cursor.fetchall()
             orders = [
                 Order(
-                    script_code=row[3],
+                    remote_order_id=row[0],
+                    code=row[3],
                     quantity=row[4],
                     buy_sell=row[5],
+                    avg_price=row[6],
                     status=OrderStatus(row[7]),
-                    order_type=row[8],
-                    comment=row[9],
+                    order_type=OrderType(row[8]),
                 )
                 for row in rows
             ]
@@ -174,28 +187,3 @@ class DatabaseConnection:
             password={cls.db_params['password']}"
             cls._instance.connection = psycopg2.connect(conn_string)
         return cls._instance
-
-
-## Example
-def main():
-    try:
-        with DatabaseConnection() as connection:
-            redis_client = redis.Redis(host="127.0.0.1")
-            repository = OrderRepository(connection, redis_client)
-
-            new_order = Order(
-                script_code=123,
-                quantity=100,
-                buy_sell="B",
-                status=OrderStatus.PLACED,
-                order_type="SL",
-                exchange_order_id="XYZ456",
-                remote_order_id="ABC123",
-            )
-            repository.insert_order(new_order)
-    except Exception as exp:
-        print("An error occurred: %s", exp)
-
-
-if __name__ == "__main__":
-    main()
