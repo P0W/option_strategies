@@ -477,7 +477,6 @@ class OrderManager:
         for order in order_status:
             eoid = order["ExchOrderID"]
             if eoid != "" and scrip_code == order["ScripCode"]:
-                id.append(eoid)
                 self.client.modify_order(
                     ExchOrderID=eoid, Price=price + 0.5, StopLossPrice=price
                 )

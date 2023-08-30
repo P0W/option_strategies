@@ -46,6 +46,12 @@ class BaseStrategy(ABC):
     def get_strategy_state(self):
         return self.startegy_state
 
+    def unmonitor(self, scrip_code: int):
+        ## remove scrip code from self.scrip_codes if it exists
+        if scrip_code in self.scrip_codes:
+            self.scrip_codes.remove(scrip_code)
+            self.logger.debug("Removed scrip code %d from strategy", scrip_code)
+
     def exit(self, _ohlcvt: dict) -> bool:
         shall_exit = False
         if self.is_in_position():
@@ -126,22 +132,15 @@ class BaseStrategy(ABC):
                     "New updated executed_orders %s",
                     json.dumps(self.executed_orders, indent=2),
                 )
-                all_executed = True
-                for scrip_code in self.executed_orders:
-                    if int(scrip_code) not in self.scrip_codes:
-                        self.logger.warning(
-                            "Received order for scrip code %d \
-                                which is not in the strategy scrip codes %s",
-                            int(scrip_code),
-                            self.scrip_codes,
-                        )
-                        all_executed = False
-                        break
-                if all_executed:
+                ## If all the self.executed_orders.keys() are in self.scrip_codes
+                ## then set strategy state to executed
+                if all(code in self.scrip_codes for code in self.executed_orders):
                     self.logger.debug(
                         "All orders executed, setting strategy state to executed"
                     )
                     self.set_strategy_state(StrategyState.EXECUTED)
+                else:
+                    self.logger.debug("Not all orders executed")
             else:
                 self.logger.warning(
                     "Received a very late/duplicate order update from broker? %s",

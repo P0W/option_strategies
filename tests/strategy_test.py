@@ -97,6 +97,8 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     self.feed_manager.unsubscribe(
                         scrip_codes=[StrangleStrategy.NIFTY_INDEX]
                     )
+                    ## Reove the nifty index from the scrip codes
+                    self.unmonitor(StrangleStrategy.NIFTY_INDEX)
                     ## we are ready to take the trade
                     self.logger.info("Ready to take the trade at %f", ohlcvt["c"])
                     ## Log some stats
