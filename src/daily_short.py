@@ -43,11 +43,15 @@ def main(args) -> None:
     # For now simply log the current INDIAVIX
     # A very high vix day should be avoided, though the premiums will be very
     # high
-    current_vix = strike_mgr.get_indices()["INDIAVIX"] / 100
-    logger.info("INDIA VIX :%.2f", current_vix)
-    if current_vix > 20.0:
-        logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
-        return
+    try:
+        current_vix = strike_mgr.get_indices()["INDIAVIX"] / 100
+        logger.info("INDIA VIX :%.2f", current_vix)
+        if current_vix > 20.0:
+            logger.info("VIX IS HIGH TODAY, AVOIDING TRADING")
+            return
+    except Exception as exp:
+        logger.error(exp)
+        logger.error("Could not obtain VIX, continuing")
     order_mgr = order_manager.OrderManager(client=client, config=config)
     if args.tag != "" and args.monitor_target <= 0.0 and not args.pnl:
         order_mgr.debug_status(tag=args.tag)
