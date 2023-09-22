@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 from enum import Enum
 from typing import List, Optional, Union
 
@@ -14,21 +15,33 @@ class OrderStatus(Enum):
     REJECTED = "Rejected"
     PARTIALLY_EXECUTED = "Partially Executed"
 
+    def __str__(self):
+        return self.value
+
 
 class ExchangeType(Enum):
     NSE = "NSE"
     BSE = "BSE"
+
+    def __str__(self):
+        return self.value
 
 
 class OrderType(Enum):
     REGULAR = "R"
     STOPLOSS = "SL"
 
+    def __str__(self):
+        return self.value
+
 
 class ExchangeSegmentType(Enum):
     DERIVATIVE = "Derivative"
     EQUITY = "Equity"
     CURRENCY = "Currency"
+
+    def __str__(self):
+        return self.value
 
 
 # pylint: disable=too-many-arguments,too-few-public-methods
@@ -64,10 +77,33 @@ class OrderRepository:
         self.redis_client = redis_client
         self.logger = logging.getLogger(__name__)
 
-    def insert_order(self, order: Order) -> int:
+    def insert_order(self, order: Order, **kwargs) -> int:
         try:
             with self.connection:
                 cursor = self.connection.cursor()
+
+                ## get scrip name exchangeTye and exchange segment from kwargs, use null if not present
+                scrip_name = kwargs.get("scrip_name", None)
+                exchange_type = ExchangeType(kwargs.get("exchange_type", None))
+                exchange_segment = ExchangeSegmentType(
+                    kwargs.get("exchange_segment", None)
+                )
+
+                ## update scrips table on conflict disregard
+                scrip_sql = """
+                    INSERT INTO scrips (script_code, script_name, exchange, exchange_segment)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (script_code) DO NOTHING
+                """
+                cursor.execute(
+                    scrip_sql,
+                    (
+                        order.script_code,
+                        scrip_name,
+                        exchange_type.value,
+                        exchange_segment.value,
+                    ),
+                )
                 sql = """
                     INSERT INTO orders (remote_order_id, exchange_order_id, 
                     script_code, quantity, buy_sell, avg_price, 
@@ -101,7 +137,7 @@ class OrderRepository:
     def fetch_orders(self, search: Optional[Union[str, int]] = None) -> List[Order]:
         try:
             cached_orders = self.redis_client.get(self._get_cache_key(search))
-            if cached_orders:
+            if False and cached_orders:
                 orders = self._deserialize_orders(cached_orders)
             else:
                 orders = self._fetch_orders_from_database(search)
@@ -125,8 +161,7 @@ class OrderRepository:
             self.logger.info("Cached orders for search: %s", search)
 
     def _serialize_orders(self, orders: List[Order]) -> str:
-        serialized_orders = [json.dumps(order.__dict__) for order in orders]
-        return json.dumps(serialized_orders)
+        return json.dumps([json.dumps(order.__dict__) for order in orders])
 
     def _deserialize_orders(self, serialized_orders: str) -> List[Order]:
         orders_data = json.loads(serialized_orders)
@@ -146,6 +181,7 @@ class OrderRepository:
             else:
                 sql = "SELECT * FROM orders"
                 params = None
+            self.logger.info("Executing query: %s | %s", sql, params)
 
             cursor.execute(sql, params)
             rows = cursor.fetchall()
@@ -166,6 +202,31 @@ class OrderRepository:
             return orders
         except Exception as exp:
             self.logger.error("Failed to fetch orders from database: %s", exp)
+            self.logger.error("Stack Trace :%s", traceback.format_exc())
+            raise
+
+    def update_order(self, **kwargs):
+        try:
+            with self.connection:
+                cursor = self.connection.cursor()
+                remote_order_id = kwargs.get("remote_order_id", None)
+                comment = kwargs.get("comment", None)
+                avg_price = float(kwargs.get("avg_price", None))
+                qunantity = int(kwargs.get("quantity", None))
+                status = OrderStatus(kwargs.get("status", None))
+                sql = """
+                    UPDATE orders SET status = %s, avg_price = %s, comment = %s, quantity = %s
+                    WHERE remote_order_id = %s
+                """
+                cursor.execute(
+                    sql,
+                    (status.value, avg_price, comment, qunantity, remote_order_id),
+                )
+                self._clear_cached_orders()
+                self.logger.info("Updated order with ID: %s", order.remote_order_id)
+        except Exception as exp:
+            self.connection.rollback()
+            self.logger.error("Failed to update order: %s", exp)
             raise
 
 
@@ -177,8 +238,8 @@ class DatabaseConnection:
         if cls._instance is None:
             cls.db_params = {
                 "dbname": "order_manager",
-                "user": "postgres",
-                "password": "postgres",
+                "user": "admin",
+                "password": "admin",
                 "host": "localhost",
                 "port": "5432",
             }
@@ -187,3 +248,42 @@ class DatabaseConnection:
             password={cls.db_params['password']}"
             cls._instance.connection = psycopg2.connect(conn_string)
         return cls._instance
+
+
+## Example usage:
+if __name__ == "__main__":
+    db_conn = DatabaseConnection()
+    order_repo = OrderRepository(db_conn.connection, redis.Redis(host="127.0.0.1"))
+    order = Order(
+        remote_order_id="straddle_1234",
+        exchange_order_id="4242123618",
+        code=61842,
+        quantity=400,
+        buy_sell="S",
+        avg_price=123.45,
+        status=OrderStatus.EXECUTED,
+        order_type=OrderType.REGULAR,
+    )
+    # order_repo.insert_order(order, scrip_name="NIFTY CE SEP 28 2023 20500.00",
+    #                         exchange_type=ExchangeType.NSE,
+    #                         exchange_segment=ExchangeSegmentType.DERIVATIVE)
+    orders = order_repo.fetch_orders()
+    ## display orders
+    for order in orders:
+        print(order.__dict__)
+    # orders = order_repo.fetch_orders(search=123)
+    # print(orders)
+    # orders = order_repo.fetch_orders(search="1234")
+    # print(orders)
+    # orders = order_repo.fetch_orders(search="12345")
+    # print(orders)
+    # orders = order_repo.fetch_orders(search=12345)
+    # print(orders)
+    # orders = order_repo.fetch_orders(search=1234)
+
+    order_repo.update_order(
+        remote_order_id="12345",
+        status=OrderStatus.CANCELLED,
+        quantity=200,
+        avg_price=123.45,
+    )

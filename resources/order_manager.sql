@@ -1,3 +1,6 @@
+-- create database order_manager;
+-- \c order_manager
+
 -- Define ENUM types
 CREATE TYPE order_status AS ENUM (
     'Placed', 'Executed', 'Cancelled', 'Rejected', 'Partially Executed'
@@ -57,10 +60,10 @@ CREATE OR REPLACE FUNCTION handle_order_status_change()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Create scrip entry when order status is "Placed"
-    IF NEW.status = 'Placed' THEN
-        INSERT INTO scrips (script_code, script_name, exchange, exchange_segment)
-        VALUES (NEW.script_code, 'Placeholder Name', 'NSE', 'Equity');
-    END IF;
+    -- IF NEW.status = 'Placed' THEN
+    --     INSERT INTO scrips (script_code, script_name, exchange, exchange_segment)
+    --     VALUES (NEW.script_code, 'Placeholder Name', 'NSE', 'Equity');
+    -- END IF;
 
     -- Insert into live_scrips when order status is "Executed"
     IF NEW.status = 'Executed' THEN
