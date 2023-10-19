@@ -25,7 +25,7 @@ class OrderManager:
     def place_short(self, strikes: dict, tag: str) -> None:
         for item in ["ce", "pe"]:
             # strikes["%s_ltp" % item] # Market Order if price =0.0
-            price = 0.0
+            price = self.square_off_price(rate=strikes["%s_ltp" % item]) - 0.5
             scrip_code = strikes[f"{item}_code"]
             textinfo = f"""client.place_order(OrderType='S',
                                   Exchange='N',

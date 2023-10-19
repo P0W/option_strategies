@@ -3,6 +3,7 @@
 # pylint: disable=unsubscriptable-object
 
 import datetime
+import json
 import logging
 import math
 import re
@@ -19,9 +20,24 @@ class StrikesManager:
         self.logger = logging.getLogger(__name__)
         self.config = config
 
+        ## load data from indices_info.json
+        with open("indices_info.json", "r") as json_file:
+            self.indices_info = json.load(json_file)
+
+    def get_exchange(self, index: str) -> str:
+        return self.indices_info[index]["exchange"]
+
+    def get_lot_size(self, index: str) -> int:
+        return self.indices_info[index]["lot_size"]
+
+    def get_tick_size(self, index: str) -> float:
+        return self.indices_info[index]["tick_size"]
+
     def get_current_expiry(self, index: str) -> int:
         self.logger.debug("Pulling the current expiry timestamp")
-        all_nifty_expiry = self.client.get_expiry(exch="N", symbol=index)["Expiry"]
+        all_nifty_expiry = self.client.get_expiry(
+            exch=self.get_exchange(index), symbol=index
+        )["Expiry"]
         date_pattern = re.compile("/Date\\((\\d+).+?\\)/")
         min_diff = math.inf
         this_expiry = StrikesManager.TODAY_TIMESTAMP
@@ -38,7 +54,7 @@ class StrikesManager:
     def straddle_strikes(self, index: str) -> dict[str, Any]:
         this_expiry = self.get_current_expiry(index)
         contracts = self.client.get_option_chain(
-            exch="N", symbol=index, expire=this_expiry
+            exch=self.get_exchange(index), symbol=index, expire=this_expiry
         )["Options"]
         ce_strikes = {}
         pe_strikes = {}
@@ -64,6 +80,10 @@ class StrikesManager:
                     atm = key
 
         self.logger.debug("Minimum CE/PE Difference = %f", min_diff)
+        premium = (ce_strikes[atm]["ltp"] + pe_strikes[atm]["ltp"]) * self.get_lot_size(
+            index
+        )
+        self.logger.debug("Straddle Premium = %f", premium)
         return {
             "ce_code": ce_strikes[atm]["code"],
             "ce_ltp": ce_strikes[atm]["ltp"],
@@ -85,7 +105,7 @@ class StrikesManager:
                 this_expiry,
             )
         contracts = self.client.get_option_chain(
-            exch="N", symbol=index, expire=this_expiry
+            exch=self.get_exchange(index), symbol=index, expire=this_expiry
         )["Options"]
         min_pe_diff = min_ce_diff = math.inf
         ce_code = -1
@@ -116,6 +136,8 @@ class StrikesManager:
 
         self.logger.debug("Minimum CE Difference = %f", min_ce_diff)
         self.logger.debug("Minimum PE Difference = %f", min_pe_diff)
+        premium = (ce_ltp + pe_ltp) * self.get_lot_size(index)
+        self.logger.debug("Strangle Premium = %f", premium)
         return {
             "ce_code": ce_code,
             "ce_ltp": ce_ltp,
