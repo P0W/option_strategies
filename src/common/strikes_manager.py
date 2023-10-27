@@ -21,7 +21,7 @@ class StrikesManager:
         self.config = config
 
         ## load data from indices_info.json
-        with open("indices_info.json", "r") as json_file:
+        with open("indices_info.json", "r", encoding="utf-8") as json_file:
             self.indices_info = json.load(json_file)
 
     def get_exchange(self, index: str) -> str:
