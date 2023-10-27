@@ -36,19 +36,21 @@ class LiveFeedManager:
         callback: Callable[[dict, dict], None],
         user_data: dict = None,
     ):
+        time_out = 5
         while not self.shutdown_flag.is_set():
             try:
                 callback_data = self.callback_queue.get(
-                    timeout=15
-                )  # wait for 60 seconds for new data
+                    timeout=time_out
+                )  # wait for 5 seconds for new data
                 callback(callback_data, user_data)
                 self.callback_queue.task_done()
             except queue.Empty:
                 # no live feed data received in the last 5 seconds
                 # stop the monitoring session
                 self.logger.warning(
-                    "No live feed data received in the last 15 seconds. \
-                     Stoping the monitoring session."
+                    "No live feed data received in the last %.2f seconds. \
+                     Stoping the monitoring session.",
+                    time_out,
                 )
                 self.stop()
 
@@ -190,6 +192,9 @@ class LiveFeedManager:
 
             self.monitoring_active = True
 
+    def is_active(self):
+        return self.monitoring_active
+
     def stop(self):
         with self.monitoring_lock:
             if not self.monitoring_active:
@@ -210,8 +215,12 @@ class LiveFeedManager:
             self.req_list = []
             self.monitoring_active = False
 
-            # Optionally wait for the receiver thread to complete
+            self.logger.debug("Order Queue Size:%d", self.order_queue.qsize())
+            self.logger.debug("Tick Queue Size:%d", self.callback_queue.qsize())
+
+            self.logger.debug("Waiting for receiver thread to complete.")
             self.receiver_thread.join()
+            self.logger.debug("All completed.")
 
     def on_cancel_order(self, message: dict):
         # Default implementation - simply log
@@ -274,7 +283,7 @@ class LiveFeedManager:
                 "Order update processed in %.2f seconds", time.time() - start_time
             )
 
-    @DeprecationWarning  # Doesn't work - Don't use
+    # @DeprecationWarning  # Doesn't work - Don't use
     def subscribe(self, scrip_codes: List[int]) -> bool:
         with self.monitoring_lock:
             self.logger.info("Subscribing to scrips:%s", scrip_codes)
