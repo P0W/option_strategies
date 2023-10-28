@@ -18,13 +18,18 @@ class OrderManager:
         self.live_feed_mgr = None
         self.target_achieved = False
         self.exchange_type = "D"
+        if "SL_FACTOR" in self.config:
+            self.sl_factor = self.config["SL_FACTOR"]
+        else:
+            self.sl_factor = 1.65
 
     def set_exchange_type(self, exch_type: str) -> str:
         self.exchange_type = exch_type
 
     def place_short(self, strikes: dict, tag: str) -> None:
         for item in ["ce", "pe"]:
-            # strikes["%s_ltp" % item] # Market Order if price =0.0
+            # Market Order if price =0.0, we place a limit order instead with 0.5 less
+            # to increase the chances of execution
             price = self.square_off_price(rate=strikes[f"{item}_ltp"]) - 0.5
             scrip_code = strikes[f"{item}_code"]
             textinfo = f"""client.place_order(OrderType='S',
@@ -49,8 +54,17 @@ class OrderManager:
             if order_status["Message"] == "Success":
                 self.logger.debug("%s_done", item)
             time.sleep(2)
+            pending_orders = self.get_sl_pending_orders(tag)
+            if len(pending_orders) > 0:
+                self.logger.warning(
+                    "%s orders not executed ! Waiting for another 1 min",
+                    json.dumps(pending_orders, indent=2),
+                )
+                time.sleep(60)
+            else:
+                self.logger.info("All short orders executed !")
 
-    def aggregate_sl_orders(self, tag: str, sl_factor=1.65):
+    def aggregate_sl_orders(self, tag: str, sl_factor: float = 1.65):
         sl_details = None
         response = self.client.get_tradebook()
         if response:
@@ -112,9 +126,10 @@ class OrderManager:
     # so we need to aggregate them based on scrip code
     # This is done to reduce brokerage when sl hits, we want one sl order to
     # be executed, instead of multiple orders
-    def place_short_stop_loss_v2(self, tag: str, retries: int = 0) -> None:
-        while retries < 3:
-            sl_details = self.aggregate_sl_orders(tag)
+    def place_short_stop_loss_v2(self, tag: str, retries_count: int = 3) -> None:
+        retries = 0
+        while retries < retries_count:
+            sl_details = self.aggregate_sl_orders(tag, self.sl_factor)
             if sl_details is None:
                 self.logger.info(
                     "No fully executed Orders found for %s waiting for 2 seconds", tag
@@ -159,6 +174,7 @@ class OrderManager:
                 self.logger.error("Failed to place stop loss for %d", scrip_code)
             time.sleep(0.5)
 
+        ## Make it generic, remove following logging, as those doesn't belong here
         self.logger.info("Collecting Maximum Premium of :%f INR", max_premium)
         self.logger.info("Maximum Loss of :%f INR", max_loss)
 

@@ -30,15 +30,23 @@ class StrangleStrategy(base_strategy.BaseStrategy):
         order_manager: order_manager.OrderManager,
         strikes_manager: strikes_manager.StrikesManager,
     ):
+        index_option = self.order_manager.config["INDEX_OPTION"]
+        ## select the index based on the config
+        if index_option == "NIFTY":
+            index_option = StrangleStrategy.NIFTY_INDEX
+        elif index_option == "BANKNIFTY":
+            self.index = StrangleStrategy.BANKNIFTY_INDEX
+        else:
+            raise Exception("Invalid index option")
         super().__init__(
             "Strangle",
-            [StrangleStrategy.NIFTY_INDEX, strikes["ce_code"], strikes["pe_code"]],
+            [self.index, strikes["ce_code"], strikes["pe_code"]],
         )
         self.strikes_manager = strikes_manager
         self.order_manager = order_manager
         self.feed_manager = feed_manager
 
-        ## This should be managed by base, by currently putting it here
+        ## This should be managed by base, but currently putting it here
 
         self.strikes = strikes
         self.set_mtm_target(self.order_manager.config["target_profit"])
@@ -78,7 +86,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     def entry(self, ohlcvt: dict) -> bool:
         if self.is_in_position():  ## Already in a trade
             return False
-        if StrangleStrategy.NIFTY_INDEX == ohlcvt["code"]:
+        if self.index == ohlcvt["code"]:
             if self.user_data["nifty_index"]["low"] == -1.0:
                 self.user_data["nifty_index"]["low"] = ohlcvt["l"]
             if self.user_data["nifty_index"]["high"] == -1.0:
@@ -94,11 +102,9 @@ class StrangleStrategy(base_strategy.BaseStrategy):
                     and ohlcvt["c"] > self.user_data["nifty_index"]["low"]
                 ):
                     ## Unsubscribe from the nifty index feed
-                    self.feed_manager.unsubscribe(
-                        scrip_codes=[StrangleStrategy.NIFTY_INDEX]
-                    )
-                    ## Reove the nifty index from the scrip codes
-                    self.unmonitor(StrangleStrategy.NIFTY_INDEX)
+                    self.feed_manager.unsubscribe(scrip_codes=[self.index])
+                    ## Remove the nifty index from the scrip codes
+                    self.unmonitor(self.index)
                     ## we are ready to take the trade
                     self.logger.info("Ready to take the trade at %f", ohlcvt["c"])
                     ## Log some stats
@@ -212,7 +218,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     def start(self):
         self.feed_manager.monitor(
             scrip_codes=[
-                StrangleStrategy.NIFTY_INDEX,
+                self.index,
                 self.strikes["ce_code"],
                 self.strikes["pe_code"],
             ],
