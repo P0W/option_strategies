@@ -7,7 +7,7 @@ import json
 import logging
 import math
 import re
-from typing import Any
+from typing import Any, Dict
 
 from src.clients.iclientmanager import IClientManager
 
@@ -15,7 +15,7 @@ from src.clients.iclientmanager import IClientManager
 class StrikesManager:
     TODAY_TIMESTAMP = int(datetime.datetime.today().timestamp())
 
-    def __init__(self, client: IClientManager, config: dict) -> None:
+    def __init__(self, client: IClientManager, config: Dict) -> None:
         self.client = client
         self.logger = logging.getLogger(__name__)
         self.config = config
@@ -51,7 +51,7 @@ class StrikesManager:
                     this_expiry = timestamp
         return this_expiry
 
-    def straddle_strikes(self, index: str) -> dict[str, Any]:
+    def straddle_strikes(self, index: str) -> Dict[str, Any]:
         this_expiry = self.get_current_expiry(index)
         contracts = self.client.get_option_chain(
             exch=self.get_exchange(index), symbol=index, expire=this_expiry
@@ -95,7 +95,7 @@ class StrikesManager:
 
     def strangle_strikes(
         self, closest_price_thresh: float, index: str
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         this_expiry = self.get_current_expiry(index)
         if "CLOSEST_PREMINUM" in self.config:
             closest_price_thresh = float(self.config["CLOSEST_PREMINUM"])
