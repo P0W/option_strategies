@@ -15,7 +15,7 @@ class LiveFeedManager:
     NIFTY_INDEX = 999920000
     BANKNIFTY_INDEX = 999920005
 
-    def __init__(self, client: IClientManager, config: Dict):
+    def __init__(self, client: IClientManager, config: Dict = {}):
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)
