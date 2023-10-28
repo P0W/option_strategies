@@ -15,7 +15,7 @@ from src.clients.iclientmanager import IClientManager
 class StrikesManager:
     TODAY_TIMESTAMP = int(datetime.datetime.today().timestamp())
 
-    def __init__(self, client: IClientManager, config: Dict = {}) -> None:
+    def __init__(self, client: IClientManager, config: Dict = None) -> None:
         self.client = client
         self.logger = logging.getLogger(__name__)
         self.config = config
