@@ -4,6 +4,7 @@ import json
 import logging
 import time
 
+from typing import Dict
 from src.clients.iclientmanager import IClientManager
 from src.common import live_feed_manager
 
@@ -27,7 +28,7 @@ class OrderManager:
     def set_exchange_type(self, exch_type: str) -> str:
         self.exchange_type = exch_type
 
-    def place_short(self, strikes: dict, tag: str) -> None:
+    def place_short(self, strikes: Dict, tag: str) -> None:
         for item in ["ce", "pe"]:
             # Market Order if price =0.0, we place a limit order instead with 0.5 less
             # to increase the chances of execution
@@ -228,7 +229,7 @@ class OrderManager:
             round(rate * 2) / 2, 2
         )  # Round to nearest 0.05 (considering same tick size)
 
-    def squareoff(self, tag: str, strikes: dict) -> None:
+    def squareoff(self, tag: str, strikes: Dict) -> None:
         exchange_order_list = []
         keep_polling = False
         placed_sq_off = 0
@@ -345,7 +346,7 @@ class OrderManager:
             return True
         return False
 
-    def get_executed_orders(self, tag: str) -> dict:
+    def get_executed_orders(self, tag: str) -> Dict:
         orderbook = self.client.order_book()
         pending_orders = list(filter(lambda x: x["RemoteOrderID"] == tag, orderbook))
         feeds = {}
@@ -377,7 +378,7 @@ class OrderManager:
         sl_exchan_orders = self.get_sl_pending_orders("sl" + tag)
         self.live_feed_mgr = live_feed_manager.LiveFeedManager(self.client, {})
 
-        def pnl_calculator(res: dict, items: dict):
+        def pnl_calculator(res: Dict, items: Dict):
             try:
                 if self.day_over(items["expiry_day"]):
                     self.logger.info("Day Over!")
@@ -452,7 +453,7 @@ class OrderManager:
                 self.logger.error(exp)
                 self.live_feed_mgr.stop()
 
-        def order_update(_message: dict, _subs_list: dict, user_data: dict):
+        def order_update(_message: Dict, _subs_list: Dict, user_data: Dict):
             unsubscribe_list = user_data["order_update"]
             if len(unsubscribe_list) == 1 and "mtm_target" in user_data:
                 # reduce mtm_target by 50%

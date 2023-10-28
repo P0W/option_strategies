@@ -1,10 +1,7 @@
 ## Author : Prashant Srivastava
-
-import json
-import os
 import sys
 import time
-
+from typing import Dict
 
 from src.strategy import base_strategy
 from src.common import live_feed_manager
@@ -33,7 +30,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## Constructor
     def __init__(
         self,
-        strikes: dict,
+        strikes: Dict,
         feed_manager: live_feed_manager.LiveFeedManager,
         order_manager: order_manager.OrderManager,
         strikes_manager: strikes_manager.StrikesManager,
@@ -60,7 +57,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## @override
     ## Exit Condtion: Check if the pnl is greater than target profit or less than stop loss
     ## If yes, exit the trade
-    def exit(self, ohlcvt: dict) -> bool:
+    def exit(self, ohlcvt: Dict) -> bool:
         if self.is_in_position():
             pnl = self.get_pnl()
             if pnl and pnl >= self.target_profit or pnl <= self.sl_target:
@@ -73,7 +70,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## Entry Condtion: Wait for 15 minutes after the start of the strategy
     ## Check if the close of nifty index is between the high and low of the nifty index
     ## If yes, unsubscribe from the nifty index feed and take the trade
-    def entry(self, ohlcvt: dict) -> bool:
+    def entry(self, ohlcvt: Dict) -> bool:
         if self.is_in_position():  ## Already in a trade
             return False
         if time.time() - self.user_data["start_time"] > 5:  ## Wait for 15 seconds
@@ -89,7 +86,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## If yes, take the trade
     ## If we are in a trade, check if we need to exit
     ## If yes, exit the trade
-    def run(self, ohlcvt: dict, user_data: dict = None):
+    def run(self, ohlcvt: Dict, user_data: Dict = None):
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
         self.ltp[code] = ltp
@@ -149,7 +146,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## @override
     ## If one of the leg is exited (due to stop loss), update the stop loss order
     ## Move the stop loss order to entry price of the other leg
-    def order_placed(self, order: dict, subsList: dict, user_data: dict):
+    def order_placed(self, order: Dict, subsList: Dict, user_data: Dict):
         super().order_placed(order, subsList, user_data)
         ## Only listen for stop loss executions
         if not order["RemoteOrderID"].startswith("sl"):

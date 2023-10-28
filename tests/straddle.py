@@ -1,4 +1,5 @@
 import time
+from typing import Dict
 from src.common.strikes_manager import StrikesManager
 from src.clients.client_5paisa import Client as Client5Paisa
 from src.common.live_feed_manager import LiveFeedManager
@@ -16,7 +17,7 @@ parser.add_argument("--index", help="Index to trade", default="NIFTY")
 args = parser.parse_args()
 
 
-def callback(ohlcvt: dict, user_data: dict = None):
+def callback(ohlcvt: dict, user_data: Dict = None):
     user_data[ohlcvt["code"]] = ohlcvt
     ## if two keys are present, then calculate the straddle price
     if len(user_data) == 2:
@@ -34,13 +35,16 @@ def callback(ohlcvt: dict, user_data: dict = None):
             user_data[straddleStrikes["pe_code"]]["t"],
         )
         ## convert utc to ist in HH:MM:SS format
-        max_time = time.strftime("%H:%M:%S", time.localtime(max_time))
-        logging.info(
-            f"Straddle Premium %.2f Difference %.2f at %s",
-            premium,
-            price_diff,
-            max_time,
-        )
+        if max_time > 0:
+            max_time = time.strftime("%H:%M:%S", time.localtime(max_time))
+            logging.info(
+                f"Straddle Premium %.2f Difference %.2f at %s",
+                premium,
+                price_diff,
+                max_time,
+            )
+        else:
+            logging.error("Invalid timestamp %d", max_time)
 
 
 def fetch_straddle_strike(
@@ -83,7 +87,7 @@ if __name__ == "__main__":
     straddleStrikes = strikes_manager.straddle_strikes(index)
     ## get pid of the running script
     pid = os.getpid()
-    logging.debug("PID of the script is %d", pid)
+    logging.info("PID of the script is %d", pid)
     ## Create a live feed manager
     live_feed_manager = LiveFeedManager(client, config)
     threading.Thread(

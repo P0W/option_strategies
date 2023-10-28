@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import time
+from typing import Dict, List
 from abc import ABC
 from abc import abstractmethod
 
@@ -17,7 +18,7 @@ class StrategyState(Enum):
 
 
 class BaseStrategy(ABC):
-    def __init__(self, name: str, scrip_codes: list):
+    def __init__(self, name: str, scrip_codes: List):
         self.scrip_codes = scrip_codes
         self.name = name
         self.logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class BaseStrategy(ABC):
             self.scrip_codes.remove(scrip_code)
             self.logger.debug("Removed scrip code %d from strategy", scrip_code)
 
-    def exit(self, _ohlcvt: dict) -> bool:
+    def exit(self, _ohlcvt: Dict) -> bool:
         shall_exit = False
         if self.is_in_position():
             pnl = self.get_pnl()
@@ -93,7 +94,7 @@ class BaseStrategy(ABC):
     def get_all_executed_orders(self):
         return self.executed_orders
 
-    def run(self, ohlcvt: dict, _user_data: dict = None):
+    def run(self, ohlcvt: Dict, _user_data: Dict = None):
         # Following is done to update the ltp of the scrip in the
         # executed_orders only
         if self.get_strategy_state() == StrategyState.EXECUTED:
@@ -108,7 +109,7 @@ class BaseStrategy(ABC):
                     self.executed_orders[code]["ltp"],
                 )
 
-    def order_placed(self, order: dict, _subs_list: dict, _user_data: dict):
+    def order_placed(self, order: Dict, _subs_list: Dict, _user_data: Dict):
         # If this is a fresh order and is fully executed
         # Fresh order : order which is not square off order or stop loss order
         fresh_orders = (
@@ -156,7 +157,7 @@ class BaseStrategy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def entry(self, ohlcvt: dict) -> bool:
+    def entry(self, ohlcvt: Dict) -> bool:
         raise NotImplementedError
 
     @abstractmethod

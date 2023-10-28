@@ -1,7 +1,6 @@
 ## Author : Prashant Srivastava
-import os
-import sys
 import time
+from typing import Dict
 
 # current_directory = os.path.dirname(os.path.abspath(__file__))
 # # Get the parent directory
@@ -16,7 +15,7 @@ import logging
 from src.clients.client_5paisa import Client as Client5Paisa
 
 
-def straddle_calculator(res: dict, user_data: dict):
+def straddle_calculator(res: Dict, user_data: Dict):
     code = res["code"]
     ltp = res["c"]
     target = user_data["target"]

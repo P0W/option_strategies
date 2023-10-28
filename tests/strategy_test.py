@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 import time
-
+from typing import Dict
 
 from src.strategy import base_strategy
 from src.common import live_feed_manager
@@ -25,7 +25,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## Constructor
     def __init__(
         self,
-        strikes: dict,
+        strikes: Dict,
         feed_manager: live_feed_manager.LiveFeedManager,
         order_manager: order_manager.OrderManager,
         strikes_manager: strikes_manager.StrikesManager,
@@ -83,7 +83,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## Entry Condtion: Wait for 15 minutes after the start of the strategy
     ## Check if the close of nifty index is between the high and low of the nifty index
     ## If yes, unsubscribe from the nifty index feed and take the trade
-    def entry(self, ohlcvt: dict) -> bool:
+    def entry(self, ohlcvt: Dict) -> bool:
         if self.is_in_position():  ## Already in a trade
             return False
         if self.index == ohlcvt["code"]:
@@ -140,7 +140,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## If yes, take the trade
     ## If we are in a trade, check if we need to exit
     ## If yes, exit the trade
-    def run(self, ohlcvt: dict, user_data: dict = None):
+    def run(self, ohlcvt: Dict, user_data: Dict = None):
         super().run(ohlcvt)
         code = ohlcvt["code"]
         ltp = ohlcvt["c"]
@@ -191,7 +191,7 @@ class StrangleStrategy(base_strategy.BaseStrategy):
     ## @override
     ## If one of the leg is exited (due to stop loss), update the stop loss order
     ## Move the stop loss order to entry price of the other leg
-    def order_placed(self, order: dict, subsList: dict, user_data: dict):
+    def order_placed(self, order: Dict, subsList: Dict, user_data: Dict):
         super().order_placed(order, subsList, user_data)
         ## user_data["order_update"] is a list of scrip codes removed from subscription
         unsubscribe_list = user_data["order_update"]

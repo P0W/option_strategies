@@ -6,7 +6,7 @@ import threading
 import time
 import traceback
 from typing import Callable
-from typing import List
+from typing import List, Dict
 
 from src.clients.iclientmanager import IClientManager
 
@@ -15,7 +15,7 @@ class LiveFeedManager:
     NIFTY_INDEX = 999920000
     BANKNIFTY_INDEX = 999920005
 
-    def __init__(self, client: IClientManager, config: dict):
+    def __init__(self, client: IClientManager, config: Dict):
         self.client = client
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -33,8 +33,8 @@ class LiveFeedManager:
 
     def callback_dequeuer(
         self,
-        callback: Callable[[dict, dict], None],
-        user_data: dict = None,
+        callback: Callable[[Dict, Dict], None],
+        user_data: Dict = None,
     ):
         time_out = 5
         while not self.shutdown_flag.is_set():
@@ -57,8 +57,8 @@ class LiveFeedManager:
     def order_dequeuer(
         self,
         subscription_list: list,
-        user_data: dict = None,
-        user_callback: Callable[[dict, list, dict], None] = None,
+        user_data: Dict = None,
+        user_callback: Callable[[Dict, list, Dict], None] = None,
     ):
         while not self.shutdown_flag.is_set():
             try:
@@ -74,9 +74,9 @@ class LiveFeedManager:
     def monitor(
         self,
         scrip_codes: List[int],
-        on_scrip_data: Callable[[dict, dict], None],
-        on_order_update: Callable[[dict, list, dict], None] = None,
-        user_data: dict = None,
+        on_scrip_data: Callable[[Dict, Dict], None],
+        on_order_update: Callable[[Dict, list, Dict], None] = None,
+        user_data: Dict = None,
     ) -> None:
         with self.monitoring_lock:
             self.logger.info("Starting monitoring session for scrips %s", scrip_codes)
@@ -89,7 +89,7 @@ class LiveFeedManager:
             def on_error(_ws, err):
                 self.logger.error("WebSocket error: %s", err)
 
-            def process_msg(msg: dict):
+            def process_msg(msg: Dict):
                 qsize = 0
                 if "Status" in msg:
                     self.order_queue.put(msg)
@@ -97,7 +97,7 @@ class LiveFeedManager:
                     if qsize > 1:
                         self.logger.debug("Order Queue Size:%d", qsize)
                 elif "LastRate" in msg:
-                    # convert the json message to a list of dict only ohlcv
+                    # convert the json message to a list of Dict only ohlcv
                     # values
                     self.callback_queue.put(
                         {
@@ -124,7 +124,7 @@ class LiveFeedManager:
                         for msg in json_msg:
                             process_msg(msg)
 
-                    # if json_msg is a dict
+                    # if json_msg is a Dict
                     elif isinstance(json_msg, dict):
                         process_msg(json_msg)
                     else:
@@ -222,20 +222,20 @@ class LiveFeedManager:
             self.receiver_thread.join()
             self.logger.debug("All completed.")
 
-    def on_cancel_order(self, message: dict):
+    def on_cancel_order(self, message: Dict):
         # Default implementation - simply log
         self.logger.info("Order cancelled:%s", json.dumps(message, indent=2))
 
-    def on_sl_order(self, message: dict):
+    def on_sl_order(self, message: Dict):
         # Default implementation - simply log
         self.logger.info("Stop loss order:%s", json.dumps(message, indent=2))
 
     def _on_order_update(
         self,
-        message: dict,
+        message: Dict,
         subscription_list: list,
-        user_data: dict = None,
-        user_callback: Callable[[dict, list, dict], None] = None,
+        user_data: Dict = None,
+        user_callback: Callable[[Dict, list, Dict], None] = None,
     ):
         # pylint: disable=too-many-nested-blocks
         start_time = time.time()

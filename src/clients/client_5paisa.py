@@ -5,6 +5,7 @@
 import datetime
 import json
 import re
+from typing import Dict, List
 
 import pyotp
 import redis
@@ -64,7 +65,7 @@ class Client(iclientmanager.IClientManager):
         return self._client.place_order(**order)
 
     # @override
-    def fetch_order_status(self, req_list: list):
+    def fetch_order_status(self, req_list: List):
         return self._client.fetch_order_status(req_list)
 
     # @override
@@ -88,15 +89,15 @@ class Client(iclientmanager.IClientManager):
         return self._client.positions()
 
     # @override
-    def cancel_bulk_order(self, exch_order_ids: list):
+    def cancel_bulk_order(self, exch_order_ids: List):
         return self._client.cancel_bulk_order(exch_order_ids)
 
     # @override
-    def Request_Feed(self, method: str, operation: str, req_list: list):
+    def Request_Feed(self, method: str, operation: str, req_list: List):
         return self._client.Request_Feed(method, operation, req_list)
 
     # @override
-    def connect(self, wspayload: dict):
+    def connect(self, wspayload: Dict):
         return self._client.connect(wspayload)
 
     # @override
@@ -112,7 +113,7 @@ class Client(iclientmanager.IClientManager):
         return self._client.receive_data(msg)
 
     # @override
-    def send_data(self, wspayload: dict):
+    def send_data(self, wspayload: Dict):
         # bug in 5paisa websocket send_data implementation, use the object
         # directly
         if self._client.ws:

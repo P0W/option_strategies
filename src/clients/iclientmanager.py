@@ -3,6 +3,7 @@ import datetime
 import logging
 import pathlib
 import sys
+from typing import List, Dict
 from abc import ABC
 from abc import abstractmethod
 
@@ -47,7 +48,7 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_order_status(self, req_list: list):
+    def fetch_order_status(self, req_list: List):
         raise NotImplementedError
 
     @abstractmethod
@@ -71,16 +72,16 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def cancel_bulk_order(self, exch_order_ids: list):
+    def cancel_bulk_order(self, exch_order_ids: List):
         raise NotImplementedError
 
     # pylint: disable=invalid-name
     @abstractmethod
-    def Request_Feed(self, method: str, operation: str, req_list: list):
+    def Request_Feed(self, method: str, operation: str, req_list: List):
         raise NotImplementedError
 
     @abstractmethod
-    def connect(self, wspayload: dict):
+    def connect(self, wspayload: Dict):
         raise NotImplementedError
 
     @abstractmethod
@@ -108,7 +109,7 @@ class IClientManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_market_depth(self, req_list: list):
+    def fetch_market_depth(self, req_list: List):
         raise NotImplementedError
 
     @abstractmethod
