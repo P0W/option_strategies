@@ -18,6 +18,7 @@ class OrderManager:
         self.live_feed_mgr = None
         self.target_achieved = False
         self.exchange_type = "D"
+        self.qty = self.config["QTY"]
         if "SL_FACTOR" in self.config:
             self.sl_factor = self.config["SL_FACTOR"]
         else:
@@ -32,21 +33,21 @@ class OrderManager:
             # to increase the chances of execution
             price = self.square_off_price(rate=strikes[f"{item}_ltp"]) - 0.5
             scrip_code = strikes[f"{item}_code"]
-            textinfo = f"""client.place_order(OrderType='S',
-                                  Exchange='N',
-                                  ExchangeType={self.exchange_type},
-                                  ScripCode={scrip_code},
-                                  Qty={self.config["QTY"]},
-                                  Price={price}, IsIntraday=True,
-                                  RemoteOrderID={tag})"""
 
-            self.logger.debug(textinfo)
+            self.logger.info(
+                "Placing order | Code=%d QTY=%d Price = %f tag = %s",
+                scrip_code,
+                self.qty,
+                price,
+                tag,
+            )
+
             order_status = self.client.place_order(
                 OrderType="S",
                 Exchange="N",
                 ExchangeType=self.exchange_type,
                 ScripCode=scrip_code,
-                Qty=self.config["QTY"],
+                Qty=self.qty,
                 Price=price,
                 IsIntraday=True,
                 RemoteOrderID=tag,
@@ -145,16 +146,17 @@ class OrderManager:
             return
         max_premium = 0.0
         max_loss = 0.0
+        sl_tag = "sl" + tag
         for scrip_code, detail in sl_details.items():
             self.logger.info("Placing stop loss for %s", scrip_code)
             self.logger.info(
-                "Placing order ScripCode=%d QTY=%d Trigger Price = %f Stop Loss Price = %f",
+                "Placing sl order | Scrip=%d Qty=%d Trigger Price = %f SL Price = %f tag = %s",
                 scrip_code,
                 detail["Qty"],
                 detail["sl"],
                 detail["higher_price"],
+                sl_tag,
             )
-            self.logger.info("USING STOPLOSS TAG:%s", ("sl" + tag))
             order_status = self.client.place_order(
                 OrderType="B",
                 Exchange="N",
@@ -164,7 +166,7 @@ class OrderManager:
                 Price=detail["higher_price"],
                 StopLossPrice=detail["sl"],
                 IsIntraday=True,
-                RemoteOrderID="sl" + tag,
+                RemoteOrderID=sl_tag,
             )
             max_premium += detail["Premium"]
             max_loss -= detail["max_loss"]
