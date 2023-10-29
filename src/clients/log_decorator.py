@@ -12,7 +12,7 @@ def log_function_call(func):
         )
         kwarg_list = [f"{key}={value!r}" for key, value in kwargs.items()]
         all_args = ", ".join(arg_list + kwarg_list)
-        logging.debug(f"Calling {func.__name__}({all_args})")
+        logging.debug("Calling %s(%s)", func.__name__, all_args)
         result = func(*args, **kwargs)
         return result
 
