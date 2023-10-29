@@ -259,26 +259,6 @@ class OrderManager:
                         qty,
                         "sq" + tag,
                     )
-                    self.logger.info(
-                        """place_order(
-                        OrderType=%s,
-                        Exchange="N",
-                        ExchangeType=%s,
-                        ScripCode=%d,
-                        Qty=%d,
-                        Price=%f,
-                        IsIntraday=%s,
-                        StopLossPrice=0.0,
-                        RemoteOrderID=%s,
-                    )""",
-                        buysell_type,
-                        segment,
-                        scrip,
-                        qty,
-                        ltp,
-                        self.intraday(is_intraday),
-                        "sq" + tag,
-                    )
                     order_status = self.client.place_order(
                         OrderType=buysell_type,
                         Exchange="N",

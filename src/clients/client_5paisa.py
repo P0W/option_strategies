@@ -12,6 +12,7 @@ import redis
 from py5paisa import FivePaisaClient
 
 from . import iclientmanager
+from .log_decorator import log_function_call
 
 
 # pylint: disable=too-many-public-methods
@@ -25,6 +26,7 @@ class Client(iclientmanager.IClientManager):
         self._client = None
 
     # @override - @TODO: Move redis to basse class
+    @log_function_call
     def login(self):
         self._client = FivePaisaClient(self.cred)
         try:
@@ -53,14 +55,17 @@ class Client(iclientmanager.IClientManager):
         return self
 
     # @override
+    @log_function_call
     def get_option_chain(self, exch: str, symbol: str, expire: int):
         return self._client.get_option_chain(exch, symbol, expire)
 
     # @override
+    @log_function_call
     def get_expiry(self, exch: str, symbol: str):
         return self._client.get_expiry(exch, symbol)
 
     # @override
+    @log_function_call
     def place_order(self, **order):
         return self._client.place_order(**order)
 
@@ -69,10 +74,12 @@ class Client(iclientmanager.IClientManager):
         return self._client.fetch_order_status(req_list)
 
     # @override
+    @log_function_call
     def modify_order(self, **order):
         return self._client.modify_order(**order)
 
     # @override
+    @log_function_call
     def cancel_order(self, **order):
         return self._client.cancel_order(**order)
 
@@ -89,6 +96,7 @@ class Client(iclientmanager.IClientManager):
         return self._client.positions()
 
     # @override
+    @log_function_call
     def cancel_bulk_order(self, exch_order_ids: List):
         return self._client.cancel_bulk_order(exch_order_ids)
 

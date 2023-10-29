@@ -29,7 +29,12 @@ class LiveFeedManager:
         self.receiver_thread = None
         self.scrip_dequeuer_thread = None
         self.order_dequeuer_thread = None
-        self.exchange_type = config["exchangeType"] if "exchangeType" in config else "D"
+        if isinstance(config, dict):
+            self.exchange_type = (
+                config["exchangeType"] if "exchangeType" in config else "D"
+            )
+        else:
+            self.exchange_type = "D"
 
     def callback_dequeuer(
         self,
