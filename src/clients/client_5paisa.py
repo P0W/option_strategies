@@ -26,7 +26,6 @@ class Client(iclientmanager.IClientManager):
         self._client = None
 
     # @override - @TODO: Move redis to basse class
-    @log_function_call
     def login(self):
         self._client = FivePaisaClient(self.cred)
         try:
@@ -55,12 +54,10 @@ class Client(iclientmanager.IClientManager):
         return self
 
     # @override
-    @log_function_call
     def get_option_chain(self, exch: str, symbol: str, expire: int):
         return self._client.get_option_chain(exch, symbol, expire)
 
     # @override
-    @log_function_call
     def get_expiry(self, exch: str, symbol: str):
         return self._client.get_expiry(exch, symbol)
 

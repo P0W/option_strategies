@@ -11,14 +11,14 @@ from abc import abstractmethod
 # pylint: disable=too-many-public-methods
 class IClientManager(ABC):
     @staticmethod
-    def configure_logger(log_level):
+    def configure_logger(log_level, prefix_log_file: str = "daily_short"):
         # Setup logging
         # create a directory logs if it does not exist
         pathlib.Path.mkdir(pathlib.Path("logs"), exist_ok=True)
         # Create a filename suffixed with current date DDMMYY format with
         # current date inside logs directory
         log_file = pathlib.Path("logs") / (
-            f"daily_short_{datetime.datetime.now().strftime('%Y%m%d')}.log"
+            f"{prefix_log_file}_{datetime.datetime.now().strftime('%Y%m%d')}.log"
         )
         # pylint: disable=line-too-long
         logging.basicConfig(

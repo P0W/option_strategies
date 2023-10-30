@@ -12,17 +12,25 @@ import argparse
 import os
 import threading
 
-Client5Paisa.configure_logger(logging.DEBUG)
+Client5Paisa.configure_logger(logging.INFO, "straddle")
 
 ## set up arg for accepting index
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--index", help="Index to trade (NIFTY/FINNIFTY/BANKNIFTY)", required=True
+    "--index", help="Index to trade (NIFTY/FINNIFTY/BANKNIFTY)", required=True, type=str
 )
 ## add qty
-parser.add_argument("--qty", help="Quantity to trade", required=True)
+parser.add_argument("--qty", help="Quantity to trade", required=True, type=int)
 ## add stop loss
-parser.add_argument("--sl", help="Stop loss", required=True)
+parser.add_argument("--sl", help="Stop loss", required=True, type=float)
+## diff threshold
+parser.add_argument(
+    "--diff", help="Difference threshold", required=False, default=-1.0, type=float
+)
+## add wait time
+parser.add_argument(
+    "--wait", help="Wait time in seconds", required=False, default=60, type=int
+)
 args = parser.parse_args()
 
 
@@ -86,17 +94,26 @@ def fetch_straddle_strike(
             live_feed_manager.stop()
             break
         elif "price_diff" in user_data:
-            if user_data["price_diff"] <= 15:
+            ## 5% of premium is the threshold
+            if user_data["diff_threshold"] < 0:
+                threshold = user_data["premium"] * 0.05
+            else:
+                threshold = user_data["diff_threshold"]
+            if user_data["price_diff"] <= threshold:
                 if not curr_time:  ## For the first time
                     curr_time = datetime.datetime.now()
                     logging.info(
-                        "Straddle premium difference is less than 15, waiting for 1 minute"
+                        "Straddle premium difference is less than %f, waiting for %d seconds",
+                        threshold,
+                        user_data["wait"],
                     )
                 elif datetime.datetime.now() - curr_time > datetime.timedelta(
-                    minutes=1
+                    seconds=user_data["wait"]
                 ):
                     logging.info(
-                        "Straddle premium difference is less than 15 for 1 minute"
+                        "Straddle premium difference is less than %f for %d seconds",
+                        threshold,
+                        user_data["wait"],
                     )
                     evt.set()
                     live_feed_manager.stop()
@@ -110,13 +127,25 @@ def fetch_straddle_strike(
         evt.set()
 
 
-def place_straddle(evt: threading.Event, config: Dict, user_data: Dict = None):
-    logging.info("Starting straddle order placer")
+def place_straddle(evt: threading.Event, user_data: Dict = None):
+    logging.info(
+        "Waiting for straddle premium difference to be less than %s for %d seconds",
+        user_data["diff_threshold"],
+        user_data["wait"],
+    )
     evt.wait()
-    if "strikes" not in user_data or user_data["price_diff"] > 15:
-        logging.error("Cannot place straddle order")
+    if user_data["diff_threshold"] < 0:
+        threshold = user_data["premium"] * 0.05
+    else:
+        threshold = user_data["diff_threshold"]
+    if "strikes" not in user_data or user_data["price_diff"] > threshold:
+        logging.error("Cannot place straddle order %s", json.dumps(user_data, indent=2))
         return
-    logging.info("Straddle premium difference is less than 15, placing straddle order")
+    logging.info(
+        "Straddle premium difference is less than %f for %d seconds, placing straddle order",
+        threshold,
+        user_data["wait"],
+    )
     strikes_data = user_data["strikes"]
     s1, s2 = strikes_data.keys()
     straddles = {
@@ -133,23 +162,22 @@ def place_straddle(evt: threading.Event, config: Dict, user_data: Dict = None):
     logging.info("Placing straddle order with tag %s", tag)
     logging.info("Straddle strikes are %s", json.dumps(straddles, indent=2))
 
-    # order_mgr = OrderManager(
-    #     client=client,
-    #     config=config,
-    # )
-    # order_mgr.place_short(straddles, tag)
-    # order_mgr.place_short_stop_loss_v2(tag)
+    order_mgr = OrderManager(
+        client=client,
+        config=config,
+    )
+    order_mgr.place_short(straddles, tag)
+    order_mgr.place_short_stop_loss_v2(tag)
 
 
 if __name__ == "__main__":
     client = Client5Paisa()
     client.login()
     index = args.index
-    config = {
-        "QTY": int(args.qty),
-        "SL_FACTOR": float(args.sl),
-    }
-    user_data = {}
+    config = {"QTY": int(args.qty), "SL_FACTOR": float(args.sl)}
+    if args.diff < 0:
+        logging.info("Using dynamic threshold of 5% of straddle premium")
+    user_data = {"diff_threshold": float(args.diff), "wait": int(args.wait)}
     strikes_manager = StrikesManager(client)
 
     ## Create a event to notify when staddle premium difference is less than 15
@@ -176,7 +204,6 @@ if __name__ == "__main__":
         args=(
             signal_short,
             user_data,
-            config,
         ),
     )
 
