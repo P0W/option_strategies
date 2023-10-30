@@ -1,10 +1,9 @@
 # Author: Prashant Srivastava
 
-# pylint: disable=broad-exception-raised
-
 import datetime
 import json
 import re
+import logging
 from typing import Dict, List
 
 import pyotp
@@ -25,11 +24,12 @@ class Client(iclientmanager.IClientManager):
             self.cred = json.load(cred_fh)
         self._client = None
 
-    # @override - @TODO: Move redis to basse class
+    # @override - @TODO: Move redis to base class
     def login(self):
+        logger = logging.getLogger(__name__)
         self._client = FivePaisaClient(self.cred)
         try:
-            redis_client = redis.Redis(host="127.0.0.1")
+            redis_client = redis.Redis()
             access_token = redis_client.get(Client.ACCESS_TOKEN_KEY)
             if access_token:
                 access_token = access_token.decode("utf-8")
@@ -37,10 +37,11 @@ class Client(iclientmanager.IClientManager):
                 self._client.client_code = self.cred["clientcode"]
                 self._client.access_token = access_token
                 self._client.Jwt_token = access_token
+                logger.info("Access token found in cache, logging in")
             else:
-                raise Exception("No access token found")
-        except Exception:
-            print("No access token found in cache, logging in")
+                raise ValueError("No access token found")
+        except Exception as ex:
+            logger.warning("No access token found in cache, logging in: %s", ex)
             totp = pyotp.TOTP(self.cred["totp_secret"])
             access_token = self._client.get_totp_session(
                 self.cred["clientcode"], totp.now(), self.cred["pin"]
