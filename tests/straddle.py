@@ -1,3 +1,9 @@
+## Strategy Brief:
+## Monitor the straddle premium difference for given threshold
+## If the premium difference is less than threshold for given duration, 
+## then place straddle order 
+## If the premium difference is greater than threshold, then keep monitoring 
+## until is comes below threshold else exit if straddle strikes change
 import datetime
 import json
 import time
