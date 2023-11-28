@@ -14,7 +14,7 @@ On my experience and some backesting on stockmock and algotest.in platforms, if 
 And instead of hedging with yet another OTMs on individual legs, we can place a stop loss order at 65% from entry price on both legs.
 On expiry we can do same with straddle (short ATM PE and CE), with 65% stop loss on both legs.
 
-Trailing stop loss also reduces loss days and can be tried out. Do check out the [`backtest`](https://github.com/P0W/option_strategies/tree/main/backtest) for more interesting insights.
+Trailing stop loss also reduces loss days and can be tried out. Do check out the [`backtest`](https://github.com/P0W/option_strategies/tree/main/resources/backtest) for more interesting insights.
 
 We can also place a **_live monitor_** feed to monitor MTM on both legs and sqaure off if either a provided MTM SL is hit or a provided  MTM target is achieved for the day.
 
