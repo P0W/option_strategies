@@ -291,7 +291,7 @@ def read_scrip_master(exch_type: str = "D"):
     return scrip_df
 
 
-def worker(code:int, size:int, full_name:str):
+def worker(code: int, size: int, full_name: str):
     profit = run_strategy(
         client, scrip_code=code, lot_size=size, name=full_name, exch_type=exch_type
     )

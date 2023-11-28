@@ -135,7 +135,7 @@ if __name__ == "__main__":
     elif args.index == "BANKNIFTY":
         round_to = 100
     elif args.index == "FINNIFTY":
-        round_to = 40
+        round_to = 50
     strikes = straddleIronCondor.get_strikes(index, round_to)
     now = int(datetime.datetime.now().timestamp())
     tag = f"p0wsic{now}"
