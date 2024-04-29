@@ -9,6 +9,8 @@ import math
 import re
 from typing import Any, Dict
 
+import pandas as pd
+
 from src.clients.iclientmanager import IClientManager
 
 
@@ -19,9 +21,11 @@ class StrikesManager:
         self.client = client
         self.logger = logging.getLogger(__name__)
         self.config = config
-
+        indices_info_path = "indices_info.json"
+        if "indices_info" in config:
+            indices_info_path = config["indices_info"]
         ## load data from indices_info.json
-        with open("indices_info.json", "r", encoding="utf-8") as json_file:
+        with open(indices_info_path, "r", encoding="utf-8") as json_file:
             self.indices_info = json.load(json_file)
 
     def get_exchange(self, index: str) -> str:
