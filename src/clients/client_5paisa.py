@@ -16,7 +16,7 @@ from .log_decorator import log_function_call
 
 # pylint: disable=too-many-public-methods
 class Client(iclientmanager.IClientManager):
-    ACCESS_TOKEN_KEY = "access_token"
+    ACCESS_TOKEN_KEY = "access_token_5paisa"
 
     # implement all the abstract methods here
     def __init__(self, cred_file: str = "creds.json"):

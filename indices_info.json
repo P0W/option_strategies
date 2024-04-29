@@ -1,52 +1,72 @@
 {
-    "NIFTY": {
-        "exchange": "N",
-        "segment": "D",
-        "lot_size": 50,
-        "tick_size": 0.05,
-        "expiry": {
-            "week": 3,
-            "month": 3
-        }
-    },
-    "BANKNIFTY": {
-        "exchange": "N",
-        "segment": "D",
-        "lot_size": 15,
-        "tick_size": 0.05,
-        "expiry": {
-            "week": 2,
-            "month": 3
-        }
-    },
-    "FINNIFTY": {
-        "exchange": "N",
-        "segment": "D",
-        "lot_size": 40,
-        "tick_size": 0.05,
-        "expiry": {
-            "week": 1,
-            "month": 3
-        }
-    },
-    "SENSEX": {
-        "exchange": "B",
-        "segment": "D",
-        "lot_size": 10,
-        "tick_size": 0.05,
-        "expiry": {
-            "week": 5,
-            "month": 5
-        }
-    },
-    "USDINR": {
-        "exchange": "N",
-        "segment": "C",
-        "lot_size": 1000,
-        "tick_size": 0.05,
-        "expiry": {
-            "week": 5,
-            "month": 5
-        }
+  "NIFTY": {
+    "exchange": "N",
+    "segment": "D",
+    "lot_size": 50,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 3,
+      "month": 3
     }
+  },
+  "BANKNIFTY": {
+    "exchange": "N",
+    "segment": "D",
+    "lot_size": 15,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 2,
+      "month": 3
+    }
+  },
+  "FINNIFTY": {
+    "exchange": "N",
+    "segment": "D",
+    "lot_size": 40,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 1,
+      "month": 3
+    }
+  },
+  "SENSEX": {
+    "exchange": "B",
+    "segment": "D",
+    "lot_size": 10,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 5,
+      "month": 5
+    }
+  },
+  "USDINR": {
+    "exchange": "N",
+    "segment": "C",
+    "lot_size": 1000,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 5,
+      "month": 5
+    }
+  },
+  "BANKEX": {
+    "exchange": "B",
+    "segment": "D",
+    "lot_size": 15,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 1,
+      "month": 1
+    }
+  },
+  "MIDCPNIFTY": {
+    "exchange": "N",
+    "segment": "D",
+    "lot_size": 75,
+    "tick_size": 0.05,
+    "expiry": {
+      "week": 1,
+      "month": 1
+    }
+  }
 }
