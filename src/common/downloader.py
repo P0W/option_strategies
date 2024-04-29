@@ -23,9 +23,7 @@ def write_to_blob(dataframe, blob_name, use_connection_string=False):
     )
     if use_connection_string:
         # Create a blob service client using the connection string
-        blob_service_client = BlobServiceClient.from_connection_string(
-            conn_str=""
-        )
+        blob_service_client = BlobServiceClient.from_connection_string(conn_str="")
     else:
         # Create a default credential
         credential = DefaultAzureCredential()
@@ -63,12 +61,12 @@ def main():
     )
 
     for index, exchange in [
-        # ("NIFTY", "N"),
+        ("NIFTY", "N"),
         ("BANKNIFTY", "N"),
-        # ("FINNIFTY", "N"),
-        # ("SENSEX", "B"),
-        # ("BANKEX", "B"),
-        # ("MIDCPNIFTY", "N"),
+        ("FINNIFTY", "N"),
+        ("SENSEX", "B"),
+        ("BANKEX", "B"),
+        ("MIDCPNIFTY", "N"),
     ]:
         this_expiry = strike_mgr.get_current_expiry(index)
         contracts = client.get_option_chain(
@@ -92,7 +90,7 @@ def main():
             dataframe["Datetime"] = pd.to_datetime(dataframe["Datetime"])
             ## save as csv to data/contracts['Name'].csv
             file_name = contract["Name"].replace(" ", "_")
-            write_to_blob(dataframe, f"{today}/{index}/{file_name}.csv", True)
+            write_to_blob(dataframe, f"{today}/{index}/{file_name}.csv")
             logging.info("Downloaded data for %s", file_name)
         ## remove the folder recursively
         pathlib.Path(f"data/{today}/{index}").rmdir()
