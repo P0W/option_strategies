@@ -3,7 +3,6 @@ This script downloads the historical data for the current expiry contracts of al
 """
 import datetime
 import logging
-import os
 import pathlib
 import sys
 
@@ -54,6 +53,7 @@ def main():
     today = datetime.datetime.now()
     today = today.strftime("%Y-%m-%d")
     Client5Paisa.configure_logger(logging.INFO, "downloader")
+    logging.getLogger("azure").setLevel(logging.WARNING)
     client = Client5Paisa("../../creds.json")
     client.login()
     strike_mgr = strikes_manager.StrikesManager(
